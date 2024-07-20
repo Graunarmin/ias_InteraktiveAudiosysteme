@@ -27,9 +27,17 @@
 *.lib
 
 # Executables
+bin/
+build/
 *.exe
 *.out
 *.app
+
+# qmake
+.qmake.stash
+Makefile
+ias.pro.user
+
 
 # JetBrains
 .idea
