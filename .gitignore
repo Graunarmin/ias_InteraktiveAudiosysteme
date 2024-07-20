@@ -23,8 +23,8 @@
 # Compiled Static libraries
 *.lai
 *.la
-*.a
-*.lib
+#*.a
+#*.lib
 
 # Executables
 bin/
@@ -45,3 +45,6 @@ ias.pro.user
 
 # Mac-OS
 *.DS_Store
+
+# Other
+include/
