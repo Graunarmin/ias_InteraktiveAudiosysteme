@@ -52,8 +52,15 @@ OBJECTS_DIR   = ./
 
 ####### Files
 
-SOURCES       = source/main.cpp 
-OBJECTS       = main.o
+SOURCES       = source/main.cpp \
+		source/classes/observer.cpp \
+		source/classes/reporter.cpp moc_observer.cpp \
+		moc_reporter.cpp
+OBJECTS       = main.o \
+		observer.o \
+		reporter.o \
+		moc_observer.o \
+		moc_reporter.o
 DIST          = /Users/johanna/Qt/6.7.0/macos/mkspecs/features/spec_pre.prf \
 		/Users/johanna/Qt/6.7.0/macos/mkspecs/features/device_config.prf \
 		/Users/johanna/Qt/6.7.0/macos/mkspecs/common/unix.conf \
@@ -284,7 +291,10 @@ DIST          = /Users/johanna/Qt/6.7.0/macos/mkspecs/features/spec_pre.prf \
 		/Users/johanna/Qt/6.7.0/macos/mkspecs/features/testcase_targets.prf \
 		/Users/johanna/Qt/6.7.0/macos/mkspecs/features/yacc.prf \
 		/Users/johanna/Qt/6.7.0/macos/mkspecs/features/lex.prf \
-		ias.pro  source/main.cpp
+		ias.pro source/classes/observer.h \
+		source/classes/reporter.h source/main.cpp \
+		source/classes/observer.cpp \
+		source/classes/reporter.cpp
 QMAKE_TARGET  = ias
 DESTDIR       = 
 TARGET        = ias
@@ -793,7 +803,8 @@ dist: distdir FORCE
 distdir: FORCE
 	@test -d $(DISTDIR) || mkdir -p $(DISTDIR)
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
-	$(COPY_FILE) --parents source/main.cpp source/BasicLogging.cpp $(DISTDIR)/
+	$(COPY_FILE) --parents source/classes/observer.h source/classes/reporter.h $(DISTDIR)/
+	$(COPY_FILE) --parents source/main.cpp source/BasicLogging.cpp source/classes/observer.cpp source/classes/reporter.cpp $(DISTDIR)/
 
 
 clean: compiler_clean 
@@ -822,8 +833,24 @@ benchmark: first
 
 compiler_rcc_make_all:
 compiler_rcc_clean:
-compiler_moc_header_make_all:
+compiler_moc_header_make_all: moc_observer.cpp moc_reporter.cpp
 compiler_moc_header_clean:
+	-$(DEL_FILE) moc_observer.cpp moc_reporter.cpp
+moc_observer.cpp: source/classes/observer.h \
+		/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers/QObject \
+		/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers/qobject.h \
+		/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers/QDebug \
+		/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers/qdebug.h \
+		source/classes/reporter.h \
+		/Users/johanna/Qt/6.7.0/macos/libexec/moc
+	/Users/johanna/Qt/6.7.0/macos/libexec/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -D__cplusplus=199711L -D__APPLE_CC__=6000 -D__clang__ -D__clang_major__=15 -D__clang_minor__=0 -D__clang_patchlevel__=0 -D__GNUC__=4 -D__GNUC_MINOR__=2 -D__GNUC_PATCHLEVEL__=1 -I/Users/johanna/Qt/6.7.0/macos/mkspecs/macx-clang -I/Users/johanna/Projekte/Uni/IAS/ias_InteraktiveAudiosysteme/ias -I/Users/johanna/Projekte/Uni/IAS/ias_InteraktiveAudiosysteme/ias -I/Users/johanna/Projekte/Uni/IAS/ias_InteraktiveAudiosysteme/ias/include -I/Users/johanna/Projekte/Uni/IAS/ias_InteraktiveAudiosysteme/ias/include/portaudio-snapshot -I/Users/johanna/Qt/6.7.0/macos/lib/QtWidgets.framework/Headers -I/Users/johanna/Qt/6.7.0/macos/lib/QtGui.framework/Headers -I/Users/johanna/Qt/6.7.0/macos/lib/QtNetwork.framework/Headers -I/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk/usr/include/c++/v1 -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/15.0.0/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk/usr/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -F/Users/johanna/Qt/6.7.0/macos/lib source/classes/observer.h -o moc_observer.cpp
+
+moc_reporter.cpp: source/classes/reporter.h \
+		/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers/QObject \
+		/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers/qobject.h \
+		/Users/johanna/Qt/6.7.0/macos/libexec/moc
+	/Users/johanna/Qt/6.7.0/macos/libexec/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -D__APPLE_CC__ -D__cplusplus=199711L -D__APPLE_CC__=6000 -D__clang__ -D__clang_major__=15 -D__clang_minor__=0 -D__clang_patchlevel__=0 -D__GNUC__=4 -D__GNUC_MINOR__=2 -D__GNUC_PATCHLEVEL__=1 -I/Users/johanna/Qt/6.7.0/macos/mkspecs/macx-clang -I/Users/johanna/Projekte/Uni/IAS/ias_InteraktiveAudiosysteme/ias -I/Users/johanna/Projekte/Uni/IAS/ias_InteraktiveAudiosysteme/ias -I/Users/johanna/Projekte/Uni/IAS/ias_InteraktiveAudiosysteme/ias/include -I/Users/johanna/Projekte/Uni/IAS/ias_InteraktiveAudiosysteme/ias/include/portaudio-snapshot -I/Users/johanna/Qt/6.7.0/macos/lib/QtWidgets.framework/Headers -I/Users/johanna/Qt/6.7.0/macos/lib/QtGui.framework/Headers -I/Users/johanna/Qt/6.7.0/macos/lib/QtNetwork.framework/Headers -I/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk/usr/include/c++/v1 -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/15.0.0/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk/usr/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -F/Users/johanna/Qt/6.7.0/macos/lib source/classes/reporter.h -o moc_reporter.cpp
+
 compiler_moc_objc_header_make_all:
 compiler_moc_objc_header_clean:
 compiler_moc_source_make_all:
@@ -838,7 +865,7 @@ compiler_yacc_impl_make_all:
 compiler_yacc_impl_clean:
 compiler_lex_make_all:
 compiler_lex_clean:
-compiler_clean: 
+compiler_clean: compiler_moc_header_clean 
 
 ####### Compile
 
@@ -850,8 +877,31 @@ main.o: source/main.cpp /Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Heade
 		/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers/QTextStream \
 		/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers/qtextstream.h \
 		/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers/QDebug \
-		/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers/qdebug.h
+		/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers/qdebug.h \
+		source/classes/observer.h \
+		/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers/QObject \
+		/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers/qobject.h \
+		source/classes/reporter.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o main.o source/main.cpp
+
+observer.o: source/classes/observer.cpp source/classes/observer.h \
+		/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers/QObject \
+		/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers/qobject.h \
+		/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers/QDebug \
+		/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers/qdebug.h \
+		source/classes/reporter.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o observer.o source/classes/observer.cpp
+
+reporter.o: source/classes/reporter.cpp source/classes/reporter.h \
+		/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers/QObject \
+		/Users/johanna/Qt/6.7.0/macos/lib/QtCore.framework/Headers/qobject.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o reporter.o source/classes/reporter.cpp
+
+moc_observer.o: moc_observer.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_observer.o moc_observer.cpp
+
+moc_reporter.o: moc_reporter.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_reporter.o moc_reporter.cpp
 
 ####### Install
 

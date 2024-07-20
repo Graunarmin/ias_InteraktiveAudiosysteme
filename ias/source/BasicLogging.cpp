@@ -5,7 +5,13 @@
 
 #include "QTextStream"
 #include "QDebug"
+/// Tutorial: https://www.youtube.com/watch?v=smQms-2yJYc&list=PLUbFnGajtZlXbrbdlraCe3LMC_YH5abao&index=5
 
+/*!
+ * \fn doCpp()
+ *
+ * Writes a string to console and reads in user input the standard library way.
+ */
 void doCpp()
 {
     std::string name;
@@ -14,6 +20,11 @@ void doCpp()
     std::cout << "Hello " << name << "\n";
 }
 
+/*!
+ * \fn doQt()
+ *
+ * Writes a string to console and reads in user input the Qt-way.
+ */
 void doQt()
 {
     QTextStream qin(stdin);
@@ -30,6 +41,11 @@ void doQt()
     qout.flush();
 }
 
+/*!
+ * \fn doMixed()
+ *
+ * Uses QTextStream and QDebug to write output and read input
+ */
 void doMixed()
 {
     QTextStream qin(stdin);

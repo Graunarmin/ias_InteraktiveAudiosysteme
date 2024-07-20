@@ -61,10 +61,14 @@ CONFIG += console c++17 cmdline
 
 QT += core network widgets
 
-#HEADERS += ias.h \
+HEADERS += \
+    source/classes/observer.h \
+    source/classes/reporter.h
 
 SOURCES +=  source/main.cpp \
-            source/BasicLogging.cpp
+            source/BasicLogging.cpp \
+            source/classes/observer.cpp \
+            source/classes/reporter.cpp
             #ias.cpp \
             #server.cpp
 
