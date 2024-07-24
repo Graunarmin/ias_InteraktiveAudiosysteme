@@ -76,10 +76,14 @@ CONFIG += console c++17 cmdline
 QT += core network widgets
 
 HEADERS += \
-    source/signals-slots/observer.h \
-    source/signals-slots/reporter.h
+    #source/signals-slots/observer.h \
+    #source/signals-slots/reporter.h
+    source/transceiver/server.h
 
 SOURCES +=  source/main.cpp \
-            source/logging/BasicLogging.cpp \
-            source/signals-slots/observer.cpp \
-            source/signals-slots/reporter.cpp
+            #source/logging/BasicLogging.cpp \
+            #source/signals-slots/observer.cpp \
+            #source/signals-slots/reporter.cpp
+            source/transceiver/server.cpp
+
+DISTFILES +=
