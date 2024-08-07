@@ -18,14 +18,14 @@ Server::Server(QObject *parent) : QObject(parent)
     }
     qInfo() << "Sending Data to port" << port;
     _port = port;
+    _data = 0;
     initSocket();
-    SendData();
+    //SendData();
+    initTimer(1000);
+    startDataTransmission();
 }
 
-Server::~Server()
-{
-
-}
+Server::~Server() { }
 
 void Server::initSocket()
 {
@@ -38,6 +38,21 @@ void Server::initSocket()
     connect(_udpSocket, &QUdpSocket::readyRead,
             this, &Server::readPendingDatagrams);
 }
+
+///
+/// \brief Server::initTimer
+/// Create a timer with an interval of a certain amaount of miliseconds.
+/// Then connect the timeout of the timer to the sendData function.
+/// This way every intervall the sendDate Function will be called.
+/// \param intervall the timer intervall in miliseconds
+///
+void Server::initTimer(int intervall)
+{
+    _timer = new QTimer();
+    _timer -> setInterval(intervall);
+    connect(_timer, &QTimer::timeout, this, &Server::sendData);
+}
+
 
 QString Server::readInPort()
 {
@@ -61,21 +76,28 @@ int Server::checkPortValidity(QString input)
     return -1;
 }
 
+void Server::startDataTransmission()
+{
+    _timer -> start();
+}
+
 /*!
  * \brief Server::SendData
  * Send Data to Server
  */
-void Server::SendData()
+void Server::sendData()
 {
-    int data;
-    for (int i = 1; i < 11; ++i)
+    if(_data < 10)
     {
-        data = i;
-        qInfo() << data;
-
-        //_udpSocket -> writeDatagram(data, QHostAddress::LocalHost, )
-        //emit intDataSignal(data);
+        _data += 1;
     }
+    else
+    {
+        _data = 1;
+    }
+    qInfo() << "Wert" << _data << "empfangen.";
+    //_udpSocket -> writeDatagram(data, QHostAddress::LocalHost, )
+    //emit intDataSignal(data);
 }
 
 /*!

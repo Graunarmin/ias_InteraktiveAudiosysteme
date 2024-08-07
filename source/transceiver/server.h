@@ -4,6 +4,7 @@
 #include "QObject"
 #include "QUdpSocket"
 #include <QDebug>
+#include <QTimer>
 
 class Server : public QObject {
 Q_OBJECT
@@ -16,15 +17,10 @@ public:
 
     // Functions
     void initSocket();
-    void SendData();
+    void initTimer(int intervall);
     void readPendingDatagrams();
 
 signals:
-    /*!
-     * \brief intDataSignal
-     * Send an int to a distant peer
-     */
-    void intDataSignal(int data);
 
 public slots:
     /*!
@@ -32,13 +28,17 @@ public slots:
      * Reaction to receiving data back from a distant server
      */
     //void receivedReflectedData();
+    void sendData();
 
 private:
     QUdpSocket* _udpSocket;
     int _port;
+    QTimer* _timer;
+    int _data;
 
     QString readInPort();
     int checkPortValidity(QString input);
+    void startDataTransmission();
 };
 
 #endif // SERVER_H
