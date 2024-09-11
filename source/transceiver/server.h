@@ -5,40 +5,47 @@
 #include "QUdpSocket"
 #include <QDebug>
 #include <QTimer>
+#include <QNetworkDatagram>
+#include <memory>
 
-class Server : public QObject {
-Q_OBJECT
+class MyClient : public QObject {
+    Q_OBJECT
 
 public:
-    // Constructor
-    explicit Server(QObject *parent = nullptr);
-    // Destructor
-    ~Server();
+    MyClient() = delete;
+    MyClient(MyClient const&) = delete;
+    void operator= (MyClient const&) = delete;
 
-    // Functions
-    void initSocket();
-    void initTimer(int intervall);
-    void readPendingDatagrams();
+    // Constructor
+    explicit MyClient(QObject *parent = nullptr);
+
+    // Destructor
+    ~MyClient(){};
+
+    bool Initialize(QString ipIn, QString portIn);
+    void Run();
 
 signals:
 
 public slots:
+
+    void slotSendData();
+
     /*!
      * \brief receivedReflectedData
      * Reaction to receiving data back from a distant server
      */
-    //void receivedReflectedData();
-    void sendData();
+    void slotReceivedReflectedData();
 
 private:
-    QUdpSocket* _udpSocket;
-    int _port;
-    QTimer* _timer;
-    int _data;
+    // struct for all member variables
+    struct Impl;
+    std::shared_ptr<Impl> m;
 
-    QString readInPort();
-    int checkPortValidity(QString input);
-    void startDataTransmission();
+    // Functions
+    void readInPort(QString& ipIn, QString& portIn);
+    bool verifyParameters(QString ipIn, QString portIn,  QHostAddress& ipOut, quint16& portOut);
+    void readPendingDatagrams();
 };
 
 #endif // SERVER_H
