@@ -1,14 +1,15 @@
-#include "server.h"
+#include "client.h"
 
 /*
- * Wir wollen via UDP Daten an einen Client (Reflektor) schicken, der unter der IP-Adresse 144.76.81.210
- * und dem Port 5401 erreichbar ist.
+ * Wir wollen via UDP Daten an einen Client (Reflektor) schicken, der unter der gegebenen IP-Adresse
+ * und dem Port erreichbar ist.
  * Verschickt werden sollen im Sekundentakt die Zahlen von 1 bis 10 in einer Endlosschleife.
  * Das Rückempfangen jedes Wertes soll mit einer Konsolenausgabe „Wert x empfangen“ quittiert werden.
  */
 
-struct MyClient::Impl
+struct Client::Impl
 {
+    /// Initialize each member with standard constructor
     std::shared_ptr<QUdpSocket> spUdpSocket = {std::make_shared<QUdpSocket>()};
     QHostAddress ip = {QHostAddress()};
     quint16 port = {0};
@@ -16,15 +17,16 @@ struct MyClient::Impl
     int timesRun = {0};
     int data = {0};
 
+    /// Constructor
     Impl(){}
 };
 
-MyClient::MyClient(QObject *parent)
+Client::Client(QObject *parent)
     : QObject{parent}
     , m(std::make_shared<Impl>())
 { }
 
-bool MyClient::Initialize(QString ipIn, QString portIn)
+bool Client::Initialize(QString ipIn, QString portIn)
 {
     //QString ipIn;
    // QString portIn;
@@ -44,25 +46,24 @@ bool MyClient::Initialize(QString ipIn, QString portIn)
         /// This way every intervall the sendDate Function will be called.
         m->spTimer -> setInterval(1000);
 
-        // connect timer to sending data
-        connect(m->spTimer.get(), &QTimer::timeout, this, &MyClient::slotSendData);
+        /// connect timer to sending data
+        connect(m->spTimer.get(), &QTimer::timeout, this, &Client::slotSendData);
 
-        // connect socket-receive to confirmation function
-        connect(m->spUdpSocket.get(), &QUdpSocket::readyRead, this, &MyClient::slotReceivedReflectedData);
+        /// connect socket-receive to confirmation function
+        connect(m->spUdpSocket.get(), &QUdpSocket::readyRead, this, &Client::slotReceivedReflectedData);
         success = true;
     }
     return success;
 }
 
-void MyClient::Run()
+void Client::Run()
 {
     m->spTimer -> start();
     qInfo() << "Trying to send Data to port " << m->port << " at " << m->ip;
 }
 
 
-
-void MyClient::readInPort(QString& ipIn, QString& portIn)
+void Client::readInPort(QString& ipIn, QString& portIn)
 {
     QTextStream qin(stdin);
     qInfo() << "Please enter the Port Number: ";
@@ -72,7 +73,7 @@ void MyClient::readInPort(QString& ipIn, QString& portIn)
     ipIn = qin.readLine();
 }
 
-bool MyClient::verifyParameters(QString ipIn, QString portIn, QHostAddress& ipOut, quint16& portOut)
+bool Client::verifyParameters(QString ipIn, QString portIn, QHostAddress& ipOut, quint16& portOut)
 {
     bool success = true;
     bool inputWasNumber = false;
@@ -109,12 +110,7 @@ bool MyClient::verifyParameters(QString ipIn, QString portIn, QHostAddress& ipOu
     return success;
 }
 
-
-/*!
- * \brief MyClient::SendData
- * Send Data to MyClient
- */
-void MyClient::slotSendData()
+void Client::slotSendData()
 {
     if(m->data < 10)
     {
@@ -125,6 +121,7 @@ void MyClient::slotSendData()
         m->data = 1;
     }
 
+    /// Reinterpret: cast pointer to int as pointer to bytes (char)
     QByteArray baData = QByteArray::fromRawData(reinterpret_cast<const char *>(&(m->data)), sizeof(m->data));
     qDebug() << "Outgoing Byte Array: " << baData;
     qint64 sentBytes = m->spUdpSocket -> writeDatagram(baData, m->ip, m->port);
@@ -140,13 +137,18 @@ void MyClient::slotSendData()
     }
 }
 
-void MyClient::slotReceivedReflectedData()
+void Client::slotReceivedReflectedData()
 {
     while (m->spUdpSocket->hasPendingDatagrams()) {
         QNetworkDatagram datagram = m->spUdpSocket->receiveDatagram();
         QByteArray baData = datagram.data();
+        /// Get a pointer to the const data stored in the byte array ...
+        auto pointer = baData.constData();
+        /// ... and then cast the content to int
+        int number = static_cast<int>(*pointer);
+
         qDebug() << "Incoming Byte Array: " << baData;
-        qInfo() << "Received Data of size " << baData.size() << " with value " << baData.toInt();
+        qInfo() << "Received Data of size " << baData.size() << " with value " << number;
     }
 }
 

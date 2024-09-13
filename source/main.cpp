@@ -10,22 +10,24 @@
 //#include "signals-slots/observer.h"
 //#include "signals-slots/reporter.h"
 
-#include "source/transceiver/server.h"
+#include "source/transceiver/client.h"
 
 // --- Build in Terminal: ---
 // after editing the .pro-file: run 'qmake' followed by 'make'
 // after only editing some code: run 'make'
 // --- Run in Terminal: ---
-// build and then run with './ias'
+// build and then run with './ias -i 127.0.0.1 -p 5041'
 
 int main(int argc, char *argv[])
 {
     // Creates an Event-Loop for de Application without an Interface
     QCoreApplication a(argc, argv);
 
+    // Default Values for IP-Address and Port
     QString ipIn = "127.0.0.1";
     QString portIn = "5401";
 
+    // Create a CommandLineParser so we can enter IP and Port as command line arguments
     QCommandLineParser parser;
 
     QCommandLineOption optIp = {{"i", "ip"}, "IP-Address", ipIn};
@@ -52,17 +54,18 @@ int main(int argc, char *argv[])
 
     qDebug() << "Ip: " << ipIn << ", Port: " << portIn;
 
+    // Create Instance of Client and run it.
+    Client myClient(nullptr);
+    if(myClient.Initialize(ipIn, portIn))
+    {
+        myClient.Run();
+    }
+
     //Reporter reporter;
     //Observer observer;
     //observer.subscribeToEvent(&reporter);
     //QObject::connect(&observer, &Observer::onObserve, &a, &QCoreApplication::quit, Qt::QueuedConnection);
     //reporter.sendSignal();
-
-    MyClient myClient(nullptr);
-    if(myClient.Initialize(ipIn, portIn))
-    {
-        myClient.Run();
-    }
 
     return a.exec();
 }
