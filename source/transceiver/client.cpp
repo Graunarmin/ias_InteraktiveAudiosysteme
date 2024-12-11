@@ -28,15 +28,6 @@ Client::Client(QObject *parent)
 
 bool Client::Initialize(QString ipIn, QString portIn)
 {
-    //QString ipIn;
-   // QString portIn;
-
-    // do
-    // {
-    //     readInPort(ipIn, portIn);
-    // }
-    // while(!verifyParameters(ipIn, portIn, m->ip, m->port));
-
     bool success = false;
 
     if(verifyParameters(ipIn, portIn, m->ip, m->port))

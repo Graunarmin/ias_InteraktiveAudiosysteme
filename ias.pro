@@ -76,12 +76,16 @@ CONFIG += console c++17 cmdline
 QT += core network widgets
 
 HEADERS += \
-    source/transceiver/client.h
+    source/transceiver/client.h \
+    source/transceiver/audiomanager.h \
+    source/transceiver/callbackdata.h
     #source/signals-slots/observer.h \
     #source/signals-slots/reporter.h
 
 SOURCES +=  source/main.cpp \
-    source/transceiver/client.cpp
+    source/transceiver/client.cpp \
+    source/transceiver/audiomanager.cpp \
+    source/transceiver/portaudiocallback.cpp
             #source/logging/BasicLogging.cpp \
             #source/signals-slots/observer.cpp \
             #source/signals-slots/reporter.cpp
