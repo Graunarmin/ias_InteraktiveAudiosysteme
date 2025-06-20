@@ -3,7 +3,9 @@
 
 #include <QObject>
 #include <QDebug>
+#include <QTime>
 #include "../../include/portaudio-snapshot/include/portaudio.h"
+#include "../../include/portaudio-snapshot/include/pa_mac_core.h"
 #include "callbackdata.h"
 
 class AudioManager : public QObject
@@ -11,8 +13,9 @@ class AudioManager : public QObject
     Q_OBJECT
 public:
     explicit AudioManager(QObject *parent = nullptr);
+    ~AudioManager();
 
-    bool Initialize(bool audiofault, bool soundIsRunning, int frameSize, int sampleRate, int audioChannels);
+    bool Initialize(int frameSize = 512, int sampleRate = 48000, int audioChannels = 1);
     void Run();
 
 private:
@@ -23,13 +26,10 @@ private:
     /*!
      * \brief InitPortAudio
      * Initializes PortAudio - MUST be called before using PortAudio anywhere else.
-     * \return true in successfull initialization, false otherwise.
+     * \return true if successfull initialization, false otherwise.
      */
-    bool InitPortAudio();
-    void LogAudioDeviceInformation();
-    bool ConfigureAudioDevice();
-    void ConfigurePaStreamParameters(PaStreamParameters &parameters,
-                                     int channelCount, PaDeviceIndex deviceIndex, PaSampleFormat sampleFormat);
+    void InitPortAudio();
+    void ConfigureAudioDevice();
 
 
 signals:

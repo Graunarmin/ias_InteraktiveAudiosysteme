@@ -11,6 +11,7 @@
 //#include "signals-slots/reporter.h"
 
 #include "source/transceiver/client.h"
+#include "source/transceiver/audiomanager.h"
 
 // --- Build in Terminal: ---
 // after editing the .pro-file: run 'qmake' followed by 'make'
@@ -55,11 +56,17 @@ int main(int argc, char *argv[])
     qDebug() << "Ip: " << ipIn << ", Port: " << portIn;
 
     // Create Instance of Client and run it.
-    Client myClient(nullptr);
-    if(myClient.Initialize(ipIn, portIn))
+    // Client myClient(nullptr);
+    //if(myClient.Initialize(ipIn, portIn))
+    //{
+    //    myClient.Run();
+    //}
+    AudioManager myAudiomanager(nullptr);
+    if(myAudiomanager.Initialize())
     {
-        myClient.Run();
+        myAudiomanager.Run();
     }
+
 
     //Reporter reporter;
     //Observer observer;

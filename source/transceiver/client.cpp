@@ -34,7 +34,7 @@ bool Client::Initialize(QString ipIn, QString portIn)
     {
         /// Create a timer with an interval of a certain amaount of miliseconds.
         /// Then connect the timeout of the timer to the sendData function.
-        /// This way every intervall the sendDate Function will be called.
+        /// This way every intervall the sendData Function will be called.
         m->spTimer -> setInterval(1000);
 
         /// connect timer to sending data

@@ -71,7 +71,7 @@ INCLUDEPATH += ./include/portaudio-snapshot
 
 CONFIG += thread qt warn_on exceptions
 
-CONFIG += console c++17 cmdline
+CONFIG += console c++17 cmdline sdk_no_version_check
 
 QT += core network widgets
 
@@ -84,8 +84,7 @@ HEADERS += \
 
 SOURCES +=  source/main.cpp \
     source/transceiver/client.cpp \
-    source/transceiver/audiomanager.cpp \
-    source/transceiver/portaudiocallback.cpp
+    source/transceiver/audiomanager.cpp
             #source/logging/BasicLogging.cpp \
             #source/signals-slots/observer.cpp \
             #source/signals-slots/reporter.cpp
