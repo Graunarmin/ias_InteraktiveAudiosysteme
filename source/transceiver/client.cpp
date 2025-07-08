@@ -9,16 +9,16 @@
 
 struct Client::Impl
 {
-    /// Initialize each member with standard constructor
-    std::shared_ptr<QUdpSocket> spUdpSocket = {std::make_shared<QUdpSocket>()};
-    QHostAddress ip = {QHostAddress()};
-    quint16 port = {0};
-    std::shared_ptr<QTimer> spTimer = {std::make_shared<QTimer>()};
-    int timesRun = {0};
-    int data = {0};
+    std::unique_ptr<QUdpSocket> upUdpSocket {std::make_unique<QUdpSocket>()};
+    QHostAddress ip {QHostAddress()};
+    quint16 port {0};
 
-    /// Constructor
-    Impl(){}
+    /// --- Timer and send number ---
+    std::unique_ptr<QTimer> upTimer {std::make_unique<QTimer>()};
+    int timesRun {0};
+    int data {0};
+
+    Impl() = default;
 };
 
 Client::Client(QObject *parent)
@@ -26,82 +26,41 @@ Client::Client(QObject *parent)
     , m(std::make_shared<Impl>())
 { }
 
-bool Client::Initialize(QString ipIn, QString portIn)
+bool Client::InitializeWithTimer(const QString &ipIn, const QString &portIn)
 {
     bool success = false;
 
-    if(verifyParameters(ipIn, portIn, m->ip, m->port))
+    if(VerifyIpAndPort(ipIn, portIn, m->ip, m->port))
     {
-        /// Create a timer with an interval of a certain amaount of miliseconds.
-        /// Then connect the timeout of the timer to the sendData function.
-        /// This way every intervall the sendData Function will be called.
-        m->spTimer -> setInterval(1000);
+        m->upTimer -> setInterval(1000);
 
         /// connect timer to sending data
-        connect(m->spTimer.get(), &QTimer::timeout, this, &Client::slotSendData);
+        connect(m->upTimer.get(), &QTimer::timeout, this, &Client::slotSendTimerData);
 
         /// connect socket-receive to confirmation function
-        connect(m->spUdpSocket.get(), &QUdpSocket::readyRead, this, &Client::slotReceivedReflectedData);
+        connect(m->upUdpSocket.get(), &QUdpSocket::readyRead, this, &Client::slotReceivedReflectedTimerData);
         success = true;
     }
     return success;
 }
 
-void Client::Run()
-{
-    m->spTimer -> start();
+void Client::RunWithTimer() const {
+    m->upTimer -> start();
     qInfo() << "Trying to send Data to port " << m->port << " at " << m->ip;
 }
 
-
-void Client::readInPort(QString& ipIn, QString& portIn)
+bool Client::InitializeForAudio(const QString &ipIn, const QString &portIn)
 {
-    QTextStream qin(stdin);
-    qInfo() << "Please enter the Port Number: ";
-    portIn = qin.readLine();
-
-    qInfo() << "An now the IP-Address: ";
-    ipIn = qin.readLine();
-}
-
-bool Client::verifyParameters(QString ipIn, QString portIn, QHostAddress& ipOut, quint16& portOut)
-{
-    bool success = true;
-    bool inputWasNumber = false;
-    int port = portIn.toInt(&inputWasNumber);
-
-    if(inputWasNumber){
-        if(port > 0 && port <= 0xffff)
-        {
-            portOut = static_cast<quint16>(port);
-        }
-        else
-        {
-            qInfo() << "Not a valid port.";
-            success = false;
-        }
-    }
-    else
+    bool success = false;
+    if(VerifyIpAndPort(ipIn, portIn, m->ip, m->port))
     {
-        qInfo() << "Not a valid port.";
-        success = false;
+        connect(m->upUdpSocket.get(), &QUdpSocket::readyRead, this, &Client::slotReceivedReflectedAudioData);
+        success = true;
     }
-
-    QHostAddress ip = QHostAddress(ipIn);
-    if(ip.isNull())
-    {
-        qInfo() << "Not a valid IP-Address.";
-        success = false;
-    }
-    else
-    {
-        ipOut = ip;
-    }
-
     return success;
 }
 
-void Client::slotSendData()
+void Client::slotSendTimerData() const
 {
     if(m->data < 10)
     {
@@ -113,12 +72,11 @@ void Client::slotSendData()
     }
 
     /// Reinterpret: cast pointer to int as pointer to bytes (char)
-    QByteArray baData = QByteArray::fromRawData(reinterpret_cast<const char *>(&(m->data)), sizeof(m->data));
+    const QByteArray baData = QByteArray::fromRawData(reinterpret_cast<const char *>(&(m->data)), sizeof(m->data));
     qDebug() << "Outgoing Byte Array: " << baData;
-    qint64 sentBytes = m->spUdpSocket -> writeDatagram(baData, m->ip, m->port);
+    const qint64 sentBytes = m->upUdpSocket -> writeDatagram(baData, m->ip, m->port);
 
-    int checkNumber = static_cast<int>(sentBytes);
-    if(checkNumber < 0)
+    if(const int checkNumber = static_cast<int>(sentBytes); checkNumber < 0)
     {
         qInfo() << "There was an Error while sending Data to the Server.";
     }
@@ -128,20 +86,48 @@ void Client::slotSendData()
     }
 }
 
-void Client::slotReceivedReflectedData()
+void Client::slotReceivedReflectedTimerData() const
 {
-    while (m->spUdpSocket->hasPendingDatagrams()) {
-        QNetworkDatagram datagram = m->spUdpSocket->receiveDatagram();
+    while (m->upUdpSocket->hasPendingDatagrams()) {
+        QNetworkDatagram datagram = m->upUdpSocket->receiveDatagram();
         QByteArray baData = datagram.data();
-        /// Get a pointer to the const data stored in the byte array ...
-        auto pointer = baData.constData();
-        /// ... and then cast the content to int
-        int number = static_cast<int>(*pointer);
+        const auto pointer = baData.data();
+        const int number = *pointer;
 
         qDebug() << "Incoming Byte Array: " << baData;
         qInfo() << "Received Data of size " << baData.size() << " with value " << number;
     }
 }
+
+void Client::SendAudioData(const spAudioData_t& spAudioData) const {
+    qDebug() << "Client: Sending Audio Data";
+    const qint64 sentBytes = m->upUdpSocket -> writeDatagram(*spAudioData, m->ip, m->port);
+    if(const int checkNumber = static_cast<int>(sentBytes); checkNumber < 0)
+    {
+        qInfo() << "There was an Error while sending Data to the Server.";
+    }
+    else
+    {
+        qInfo() << "Successfully sent " << checkNumber << "Bytes of data to Server.";
+    }
+}
+
+void Client::slotReceivedReflectedAudioData()
+{
+    const auto spByteArray = std::make_shared<QByteArray>();
+
+    while (m->upUdpSocket->hasPendingDatagrams())
+    {
+        QNetworkDatagram datagram = m->upUdpSocket->receiveDatagram();
+        spByteArray->append(datagram.data());
+
+        qDebug() << "Size of Datagram: " << datagram.data().size();
+        qDebug() << "Incoming Byte Array: " << datagram.data();
+    }
+    Q_EMIT signalReceivedAudioData(spByteArray);
+}
+
+
 
 
 

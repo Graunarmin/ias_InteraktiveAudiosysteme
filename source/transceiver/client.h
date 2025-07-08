@@ -1,12 +1,17 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
-#include "QObject"
-#include "QUdpSocket"
+#include <QObject>
 #include <QDebug>
-#include <QTimer>
+#include <QUdpSocket>
 #include <QNetworkDatagram>
+#include <QIODevice>
+#include <QTimer>
+
+#include <utility>
 #include <memory>
+
+#include "utils.h"
 
 class Client : public QObject {
     Q_OBJECT
@@ -21,72 +26,67 @@ public:
     explicit Client(QObject *parent = nullptr);
 
     /// Destructor
-    ~Client(){};
+    ~Client() override = default;
 
     /*!
-     * \brief Initialize
-     * Initialize the Client with IP-Address and Port-Number
+     * \brief Initializes the Client with IP address and port number.
+     * Creates a timer with an interval of a certain amount of milliseconds,
+     * then connects the timeout-signal of the timer to the sendData function (slot).
+     * This way, every intervall the sendData() function will be called.
      * \param ipIn
      * The IP-Address
      * \param portIn
      * The Port-Number
      * \return
-     * True if IP and Port are Valid, False if not
+     * True if IP and port are valid, false if not.
      */
-    bool Initialize(QString ipIn, QString portIn);
+    bool InitializeWithTimer(const QString &ipIn, const QString &portIn);
+
+    /*! Initializes the Client with IP address and port number.
+     * Subscribes to the server's readyRead() signal.
+     * @param ipIn The IP address
+     * @param portIn The port number
+     * @return True if IP and port are valid, false if not.
+     */
+    bool InitializeForAudio(const QString &ipIn, const QString &portIn);
 
     /*!
-     * \brief Run
-     * Start sending data to the server every second
+     * \brief Start sending a number to the server every second.
      */
-    void Run();
+    void RunWithTimer() const;
+
+    /*! Sends a QByteArray to the server via udp socket.
+     *
+     * @param audioData A shared pointer to the QByteArray full of
+     * audio samples.
+     */
+    void SendAudioData(const spAudioData_t& audioData) const;
 
 signals:
-
-public slots:
-
-    /*!
-     * \brief slotSendData
-     * Sends data to the server
+    /*! A signal that is emitted whenever the udp socket has received
+     * data back from the server.
+     * @param audioData A shared pointer to the QByteArray the server sent back.
      */
-    void slotSendData();
-
-    /*!
-     * \brief receivedReflectedData
-     * Reads data from the server when there is data to read
-     */
-    void slotReceivedReflectedData();
+    void signalReceivedAudioData(spAudioData_t audioData);
 
 private:
     /// struct for all member variables
     struct Impl;
     std::shared_ptr<Impl> m;
 
-    /*!
-     * \brief readInPort
-     * Helper Function for asking the user for the IP-Address and Port-Number
-     * \param ipIn
-     * Reference to the string in which to store the IP-Address
-     * \param portIn
-     * Reference to the string in which to store the Port number
-     */
-    void readInPort(QString& ipIn, QString& portIn);
+private slots:
 
-    /*!
-     * \brief verifyParameters
-     * Verifies whether the given IP and Port are valid
-     * \param ipIn
-     * The IP to verify
-     * \param portIn
-     * The port to verify
-     * \param ipOut
-     * reference to the variable in which to store the valid IP
-     * \param portOut
-     * reference to the variable in which to store the valid port
-     * \return
-     * True if both parameters are valid, False if at least one parameter is not.
+    /*! Sends data to the server. */
+    void slotSendTimerData() const;
+
+    /*! Reads data from the server when there is data to read. */
+    void slotReceivedReflectedTimerData() const;
+
+    /*! Slot that creates a shared pointer to a QByteArray,
+     * fills that array with the received data in the udp socket,
+     * and then emits the 'ReceivedAudioData' signal, which carries the shared pointer.
      */
-    bool verifyParameters(QString ipIn, QString portIn,  QHostAddress& ipOut, quint16& portOut);
+    void slotReceivedReflectedAudioData();
 };
 
 #endif // CLIENT_H
