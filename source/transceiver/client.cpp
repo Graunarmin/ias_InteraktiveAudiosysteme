@@ -33,6 +33,7 @@ bool Client::InitializeWithTimer(const QString &ipIn, const QString &portIn)
     if(VerifyIpAndPort(ipIn, portIn, m->ip, m->port))
     {
         m->upTimer -> setInterval(1000);
+        m->upUdpSocket->bind(QHostAddress::Any, m->port);
 
         /// connect timer to sending data
         connect(m->upTimer.get(), &QTimer::timeout, this, &Client::slotSendTimerData);
@@ -54,6 +55,7 @@ bool Client::InitializeForAudio(const QString &ipIn, const QString &portIn)
     bool success = false;
     if(VerifyIpAndPort(ipIn, portIn, m->ip, m->port))
     {
+        m->upUdpSocket->bind(QHostAddress::Any, m->port);
         connect(m->upUdpSocket.get(), &QUdpSocket::readyRead, this, &Client::slotReceivedReflectedAudioData);
         success = true;
     }
@@ -92,23 +94,23 @@ void Client::slotReceivedReflectedTimerData() const
         QNetworkDatagram datagram = m->upUdpSocket->receiveDatagram();
         QByteArray baData = datagram.data();
         const auto pointer = baData.data();
-        const int number = *pointer;
+        const char number = *pointer;
 
         qDebug() << "Incoming Byte Array: " << baData;
-        qInfo() << "Received Data of size " << baData.size() << " with value " << number;
+        qInfo() << "Received Data of size " << baData.size() << " with value " << static_cast<int>(number);
     }
 }
 
-void Client::SendAudioData(const spAudioData_t& spAudioData) const {
-    qDebug() << "Client: Sending Audio Data";
+void Client::SendAudioData(const spAudioData_t& spAudioData) const
+{
     const qint64 sentBytes = m->upUdpSocket -> writeDatagram(*spAudioData, m->ip, m->port);
     if(const int checkNumber = static_cast<int>(sentBytes); checkNumber < 0)
     {
-        qInfo() << "There was an Error while sending Data to the Server.";
+        qInfo() << "Client: There was an Error while sending Data to the Server.";
     }
     else
     {
-        qInfo() << "Successfully sent " << checkNumber << "Bytes of data to Server.";
+        qInfo() << "Client: Successfully sent " << checkNumber << "Bytes of data to Server.";
     }
 }
 
@@ -121,8 +123,8 @@ void Client::slotReceivedReflectedAudioData()
         QNetworkDatagram datagram = m->upUdpSocket->receiveDatagram();
         spByteArray->append(datagram.data());
 
-        qDebug() << "Size of Datagram: " << datagram.data().size();
-        qDebug() << "Incoming Byte Array: " << datagram.data();
+        qInfo() << "Client: Received Datagram of size " << datagram.data().size() << " from Server.";
+       // qDebug() << "Incoming Byte Array: " << datagram.data();
     }
     Q_EMIT signalReceivedAudioData(spByteArray);
 }

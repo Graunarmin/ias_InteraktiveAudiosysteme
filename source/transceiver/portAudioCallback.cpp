@@ -35,22 +35,28 @@ int PortAudioCallback(const void *inputBuffer,
     auto input = static_cast<const char *> (inputBuffer);
     const auto output = static_cast<char *>(outputBuffer);
 
-    qDebug() << "PortAudioCallback - inputBuffer Size: " << sizeof(&input);
-
     // send input to server
-    auto spAudioData = std::make_shared<QByteArray>(input, framesPerBuffer*2);
+    auto spAudioData = std::make_shared<QByteArray>(input, framesPerBuffer *2);
     pCallbackData->pAudioManager->SendAudioInputToServer(spAudioData);
 
-    //std::shared_ptr<QByteArray> spReceivedData;
-    //pCallbackData->pAudioManager->GetReceivedAudioData(spReceivedData);
-
-    //const auto receivedData = spReceivedData->data();
-    //const auto receivedSize = spReceivedData->size();
-
     // input direkt in den output schreiben
-    for (unsigned int i=0; i<framesPerBuffer*2; i++)
+    for (unsigned int i=0; i < framesPerBuffer * 2; i++)
     {
-        output[i] = input[i] ;
+        output[i] = input[i];
+    }
+
+    // Get received data from buffer
+    std::shared_ptr<QByteArray> spReceivedData;
+    bool success = pCallbackData->pAudioManager->GetReceivedAudioData(spReceivedData);
+
+    if (success)
+    {
+        const auto receivedData = spReceivedData->data();
+        //const auto receivedSize = spReceivedData->size();
+        for (unsigned int i=0; i < framesPerBuffer * 2; i++)
+        {
+            output[i] += receivedData[i];
+        }
     }
 
     //qDebug() << "Output Inhalt: " << *output;

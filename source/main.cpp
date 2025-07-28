@@ -35,19 +35,19 @@ int main(int argc, char *argv[])
     QCommandLineOption optPort = {{"p", "port"}, "Port Number"};
     optPort.setDefaultValue("5401");
 
-    QCommandLineOption optFramesPerBuffer = {{"f", "fpb"}, "frames per buffer"};
+    QCommandLineOption optFramesPerBuffer = {{"f", "fpb"}, "Frames per buffer"};
     optFramesPerBuffer.setDefaultValue("512");
 
-    QCommandLineOption optSampleRate = {{"s", "sr"}, {"sample rate"}};
+    QCommandLineOption optSampleRate = {{"s", "sr"}, {"Sample rate"}};
     optSampleRate.setDefaultValue("48000");
 
-    QCommandLineOption optAudioChannels = {{"c", "ac"}, "audio channels"};
+    QCommandLineOption optAudioChannels = {{"c", "ac"}, "Audio channels"};
     optAudioChannels.setDefaultValue("1");
 
-    QCommandLineOption optInDev = {{"in", "inDev"}, "Inputdevice index"};
+    QCommandLineOption optInDev = {{"m", "inDev"}, "Input device index (microphone)"};
     optInDev.setDefaultValue("0");
 
-    QCommandLineOption optOutDev = {{"out", "outDev"}, "Outputdevice index"};
+    QCommandLineOption optOutDev = {{"l", "outDev"}, "Output device index (speaker)"};
     optOutDev.setDefaultValue("1");
 
     parser.setApplicationDescription("Start audio callback function that sends input to server.");
@@ -60,22 +60,28 @@ int main(int argc, char *argv[])
     const QString framesPerBuffer = parser.value(optFramesPerBuffer);
     const QString sampleRate = parser.value(optSampleRate);
     const QString audioChannels = parser.value(optAudioChannels);
-    QString inputDeviceIndex = parser.value(optInDev);
-    QString outputDeviceIndex = parser.value(optOutDev);
+    const QString inputDeviceIndex = parser.value(optInDev);
+    const QString outputDeviceIndex = parser.value(optOutDev);
 
-    qDebug() << "Ip: " << ipIn << ", Port: " << portIn;
+    //qDebug() << "Ip: " << ipIn << ", Port: " << portIn;
 
     /// Aufgabe A
     // Create Instance of Client and run it.
-    // Client myClient(nullptr);
-    //if(myClient.InitializeWithTimer(ipIn, portIn))
-    //{
-    //    myClient.RunWithTimer();
-    //}
+    /*Client myClient(nullptr);
+    if(myClient.InitializeWithTimer(ipIn, portIn))
+    {
+        myClient.RunWithTimer();
+    }*/
 
     /// Aufgabe B
     AudioManager audioManager;
-    if (audioManager.Initialize(framesPerBuffer, sampleRate, audioChannels, ipIn, portIn))
+    if (audioManager.Initialize(framesPerBuffer,
+        sampleRate,
+        audioChannels,
+        inputDeviceIndex,
+        outputDeviceIndex,
+        ipIn,
+        portIn))
     {
         audioManager.StartAudioStream();
     }

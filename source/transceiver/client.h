@@ -57,10 +57,10 @@ public:
 
     /*! Sends a QByteArray to the server via udp socket.
      *
-     * @param audioData A shared pointer to the QByteArray full of
+     * @param spAudioData A shared pointer to the QByteArray full of
      * audio samples.
      */
-    void SendAudioData(const spAudioData_t& audioData) const;
+    void SendAudioData(const spAudioData_t& spAudioData) const;
 
 signals:
     /*! A signal that is emitted whenever the udp socket has received

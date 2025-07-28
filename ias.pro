@@ -78,16 +78,16 @@ QT += core network widgets
 HEADERS += \
     source/transceiver/client.h \
     source/transceiver/audiomanager.h \
-    source/transceiver/PortAudioCallback.h \
-    source/transceiver/Utils.h
+    source/transceiver/portAudioCallback.h \
+    source/transceiver/utils.h
     #source/signals-slots/observer.h \
     #source/signals-slots/reporter.h
 
 SOURCES +=  source/main.cpp \
     source/transceiver/client.cpp \
     source/transceiver/audiomanager.cpp \
-    source/transceiver/PortAudioCallback.cpp \
-    source/transceiver/Utils.cpp
+    source/transceiver/portAudioCallback.cpp \
+    source/transceiver/utils.cpp
     #source/logging/BasicLogging.cpp \
     #source/signals-slots/observer.cpp \
     #source/signals-slots/reporter.cpp

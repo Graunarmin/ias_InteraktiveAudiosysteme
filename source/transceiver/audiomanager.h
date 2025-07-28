@@ -22,6 +22,8 @@ public:
         const QString& framesPerBuffer,
         const QString& sampleRate,
         const QString& audioChannels,
+        const QString& inputDeviceIndex,
+        const QString& outputDeviceIndex,
         const QString& ipIn,
         const QString& portIn);
 
@@ -31,18 +33,18 @@ public:
     /*! Emits a signal to de-couple the next action from the callback function's context.
      * This makes the sending of data thread-safe.
      * @remark Thread-safe
-     * @param audioData A shared pointer to the QByteArray with the data
+     * @param spInputAudioData A shared pointer to the QByteArray with the data
      * that is supposed to go to the server.
      */
-    void SendAudioInputToServer(const spAudioData_t &audioData) const;
+    void SendAudioInputToServer(const spAudioData_t &spInputAudioData) const;
 
     /*! Checks if the queue of returned audio data has any contents and
      * if so, it dequeues the first entry into 'receivedData'.
      * @remark Thread-safe
-     * @param receivedData A shared pointer to a QByteArray.
+     * @param spReflectedAudioData A shared pointer to a QByteArray.
      * @return True if there was any data in the queue, false otherwise.
      */
-    bool GetReceivedAudioData(spAudioData_t &receivedData) const;
+    bool GetReceivedAudioData(spAudioData_t &spReflectedAudioData) const;
 
 private:
 
@@ -60,7 +62,7 @@ private:
     /*! Logs all available audio devices and asks the user for
      * the input and output device's indices.
      */
-    void ConfigureAudioDevices();
+    bool ConfigureAudioDevices(const QString& inDeviceIndex, const QString& outDeviceIndex);
 
     /*! Initializes PortAudio - MUST be called before using PortAudio anywhere else.
      * \return true if successfully initialized, false otherwise.
@@ -81,16 +83,16 @@ signals:
 private slots:
     /*! Slot that calls the Client's 'SendAudioData()' function.
      * It also measures the time since the last time this slot was pinged.
-     * @param inputData A shared pointer to the QByteArray with the data that is
+     * @param spInputAudioData A shared pointer to the QByteArray with the data that is
      * supposed to be sent.
      */
-    void slotSendAudioInputToServer(const spAudioData_t &inputData);
+    void slotSendAudioInputToServer(const spAudioData_t &spInputAudioData);
 
     /*! Slot that enqueues the received pointer to a QByteArray.
-     * @param audioData A shared pointer to the QByteArray that was returned from the server.
+     * @param spReflectedAudioData A shared pointer to the QByteArray that was returned from the server.
      * @remark Thread-safe
      */
-    void slotReceivedAudioData(const spAudioData_t& audioData);
+    void slotReceivedAudioData(const spAudioData_t& spReflectedAudioData);
 };
 
 #endif // AUDIOMANAGER_H

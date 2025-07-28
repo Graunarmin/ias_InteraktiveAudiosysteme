@@ -60,17 +60,21 @@ bool AudioManager::Initialize(
     const QString& framesPerBuffer,
     const QString& sampleRate,
     const QString& audioChannels,
+    const QString& inputDeviceIndex,
+    const QString& outputDeviceIndex,
     const QString& ipIn,
     const QString& portIn)
 {
     qRegisterMetaType<spAudioData_t>("spAudioData_t");
+
+    m->callbackData->pAudioManager = this;
 
     if(!m->client.InitializeForAudio(ipIn, portIn)) return false;
 
     InitPortAudio();
     if(m->portAudioError != paNoError) return false;
 
-    ConfigureAudioDevices();
+    if (!ConfigureAudioDevices(inputDeviceIndex, outputDeviceIndex)) return false;
     if (!ConfigureAudioParameters(framesPerBuffer, sampleRate, audioChannels)) return false;
 
     ConfigurePortaudioParameters();
@@ -99,7 +103,7 @@ void AudioManager::StartAudioStream() const {
         m->audiofault = false;
         qDebug() << "Starting Stream ...";
         /// Start timer that measures the time intervals between callback function calls
-        if(!(m->intervalTimer.isValid())) m->intervalTimer.start();
+        //if(!(m->intervalTimer.isValid())) m->intervalTimer.start();
         m->portAudioError = Pa_StartStream(m->stream);
         if(m->portAudioError == paNoError)
         {
@@ -121,27 +125,22 @@ void AudioManager::StartAudioStream() const {
     }
 }
 
-bool AudioManager::GetReceivedAudioData(spAudioData_t &receivedData) const
+bool AudioManager::GetReceivedAudioData(spAudioData_t &spReflectedAudioData) const
 {
     bool success = false;
-    QMutexLocker locker(&m->mtxLocker);
+    //QMutexLocker locker(&m->mtxLocker);
 
     if (!m->queuedPointersToReturnedAudioDataBuffers.empty())
     {
-        receivedData = m->queuedPointersToReturnedAudioDataBuffers.dequeue();
+        spReflectedAudioData = m->queuedPointersToReturnedAudioDataBuffers.dequeue();
         success = true;
     }
     return success;
 }
 
-void AudioManager::SendAudioInputToServer(const spAudioData_t &audioData) const
+void AudioManager::SendAudioInputToServer(const spAudioData_t &spInputAudioData) const
 {
-    qDebug() << "Attempting to send audio input to server...";
-
-    //emit sigSendAudioInputToServer(audioData);
-    m->client.SendAudioData(audioData);
-    //m->callbackInterval = m->intervalTimer.restart();
-    //qInfo() << "Current interval time: " << m->callbackInterval;
+    Q_EMIT sigSendAudioInputToServer(spInputAudioData);
 }
 
 #pragma region PRIVATE MEMBER FUNCTIONS
@@ -161,6 +160,51 @@ void AudioManager::InitPortAudio() {
     {
         qWarning() << "ERROR: Number of Devices came back negative with " << m->amountOfAudioDevices;
     }
+}
+
+bool AudioManager::ConfigureAudioDevices(const QString& inDeviceIndex, const QString& outDeviceIndex)
+{
+    LogAudioDeviceInformation(m->amountOfAudioDevices);
+    bool success = false;
+    QTextStream qin(stdin);
+
+    qInfo() << "The index for the input device is currently set to " << m->inputDeviceIndex<<
+        " and the index for the output device is set to " << m->outputDeviceIndex << ".";
+    qInfo() << "Do you wish to change these settings? [y/n]";
+    QString confirmation = qin.readLine();
+    if(confirmation != "y")
+    {
+        m->inputDeviceIndex = inDeviceIndex.toInt(&success);
+        if (!success)
+        {
+            qWarning() << "The index for the input device is not a valid number.";
+            return success;
+        }
+
+        m->outputDeviceIndex = outDeviceIndex.toInt(&success);
+        if (!success)
+        {
+            qWarning() << "The index for the output device is not a valid number.";
+            return success;
+        }
+        return success;
+    }
+
+    while(!success)
+    {
+        qInfo() << "Please check the device list above and enter the index of the input device you wish to use: ";
+        QString inputIndex = qin.readLine();
+        success = VerifyDeviceIndex(inputIndex, m->amountOfAudioDevices, m->inputDeviceIndex);
+    }
+    success = false;
+    while(!success)
+    {
+        qInfo() << "And the index or the output device: ";
+        QString outputIndex = qin.readLine();
+        success = VerifyDeviceIndex(outputIndex, m->amountOfAudioDevices, m->outputDeviceIndex);
+    }
+    qDebug() << "New index for input device: " << m->inputDeviceIndex << ", new index for output device: " << m->outputDeviceIndex;
+    return success;
 }
 
 bool AudioManager::ConfigureAudioParameters(const QString& framesPerBuffer, const QString& sampleRate, const QString& audioChannels)
@@ -186,35 +230,6 @@ bool AudioManager::ConfigureAudioParameters(const QString& framesPerBuffer, cons
     }
     m->bufferSize = m->framesPerBuffer * m->audioChannels * 2;
     return success;
-}
-
-void AudioManager::ConfigureAudioDevices()
-{
-    LogAudioDeviceInformation(m->amountOfAudioDevices);
-    return;
-    bool success = false;
-    QTextStream qin(stdin);
-
-    qInfo() << "The index for the input device is currently set to " << m->inputDeviceIndex<<
-        " and the index for the output device is set to " << m->outputDeviceIndex << ".";
-    qInfo() << "Do you wish to change these settings? [y/n]";
-    QString confirmation = qin.readLine();
-    if(confirmation != "y") return;
-
-    while(!success)
-    {
-        qInfo() << "Please check the device list above and enter the index of the input device you wish to use: ";
-        QString inputIndex = qin.readLine();
-        success = VerifyDeviceIndex(inputIndex, m->amountOfAudioDevices, m->inputDeviceIndex);
-    }
-    success = false;
-    while(!success)
-    {
-        qInfo() << "And the index or the output device: ";
-        QString outputIndex = qin.readLine();
-        success = VerifyDeviceIndex(outputIndex, m->amountOfAudioDevices, m->outputDeviceIndex);
-    }
-    qDebug() << "New index for input device: " << m->inputDeviceIndex << ", new index for output device: " << m->outputDeviceIndex;
 }
 
 void AudioManager::ConfigurePortaudioParameters() {
@@ -243,19 +258,18 @@ void AudioManager::ConfigurePortaudioParameters() {
 
 #pragma region SLOTS
 
-void AudioManager::slotSendAudioInputToServer(const spAudioData_t &inputData)
+void AudioManager::slotSendAudioInputToServer(const spAudioData_t &spInputAudioData)
 {
-    qDebug() << "First signal received";
-    m->client.SendAudioData(inputData);
-    m->callbackInterval = m->intervalTimer.restart();
-    qInfo() << "Current interval time: " << m->callbackInterval;
+    m->client.SendAudioData(spInputAudioData);
+    //m->callbackInterval = m->intervalTimer.restart();
+    //qInfo() << "Current interval time: " << m->callbackInterval;
 }
 
-void AudioManager::slotReceivedAudioData(const spAudioData_t& audioData)
+void AudioManager::slotReceivedAudioData(const spAudioData_t& spReflectedAudioData)
 {
     /// the locker is unlocked whenever the function ends or returns
-    QMutexLocker locker(&m->mtxLocker);
-    m->queuedPointersToReturnedAudioDataBuffers.enqueue(audioData);
+    //QMutexLocker locker(&m->mtxLocker);
+    m->queuedPointersToReturnedAudioDataBuffers.enqueue(spReflectedAudioData);
 }
 
 #pragma endregion
