@@ -66,8 +66,9 @@ CONFIG(release, debug|release){
 DEFINES += PORTAUDIO
 
 INCLUDEPATH += .
-INCLUDEPATH += ./include
-INCLUDEPATH += ./include/portaudio-snapshot
+INCLUDEPATH += ./include/
+INCLUDEPATH += ./include/portaudio-snapshot/include/
+INCLUDEPATH += ./include/opus-1.5.2/include/
 
 CONFIG += thread qt warn_on exceptions
 

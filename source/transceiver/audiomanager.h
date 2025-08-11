@@ -10,6 +10,9 @@
 #include "client.h"
 #include "portAudioCallback.h"
 #include "utils.h"
+#include "opus.h"
+#include "opus_custom.h"
+#include "opus_types.h"
 
 class AudioManager : public QObject
 {
@@ -45,6 +48,9 @@ public:
      * @return True if there was any data in the queue, false otherwise.
      */
     bool GetReceivedAudioData(spAudioData_t &spReflectedAudioData) const;
+    //bool EncodeWithOpus(opus_int16 *inputAudio);
+    bool DecodeWithOpus(spAudioData_t &spReflectedAudioData);
+
 
 private:
 
@@ -71,6 +77,8 @@ private:
 
     /*! Configures the in- and output streaming parameters for portaudio. */
     void ConfigurePortaudioParameters();
+
+    void ConfigureOpus();
 
 
 signals:

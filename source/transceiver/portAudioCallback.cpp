@@ -31,9 +31,14 @@ int PortAudioCallback(const void *inputBuffer,
 {
     const auto pCallbackData = static_cast<CallbackData *>(userData);
 
+    qDebug() << "PortAudioCallback: Input Buffer size:" << sizeof(&inputBuffer);
     // Input- und Outputbuffer definieren
     auto input = static_cast<const char *> (inputBuffer);
     const auto output = static_cast<char *>(outputBuffer);
+
+    auto inputArray = static_cast<const short *> (inputBuffer);
+
+    //pCallbackData->pAudioManager->EncodeWithOpus()
 
     // send input to server
     auto spAudioData = std::make_shared<QByteArray>(input, framesPerBuffer *2);

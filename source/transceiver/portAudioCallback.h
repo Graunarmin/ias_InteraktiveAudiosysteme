@@ -1,8 +1,8 @@
 #ifndef PORTAUDIOCALLBACK_H
 #define PORTAUDIOCALLBACK_H
 
-#include "../../include/portaudio-snapshot/include/portaudio.h"
-#include "../../include/portaudio-snapshot/include/pa_mac_core.h"
+#include "portaudio.h"
+#include "pa_mac_core.h"
 #include <QObject>
 #include <QDebug>
 #include "audiomanager.h"

@@ -21,9 +21,19 @@ struct AudioManager::Impl
     int inputDeviceIndex {0};
     int outputDeviceIndex {1};
 
+    /// OPUS
+    // 16-bit integer (short)
+    opus_int16 *shortBuffer, *channel1Short, *channel2Short;
+
+    OpusCustomEncoder *encoder;
+    OpusCustomMode *opusMode;
+
+    unsigned char *celtDone, *channel1Done;
+
+
     /// ---- Stream/Callback Configuration ----
-    PaStream* stream{};
-    std::shared_ptr<PaStreamParameters> inputParameters {std::make_shared<PaStreamParameters>()};
+    PaStream *stream{};
+    std::shared_ptr<PaStreamParameters> inputParameters{std::make_shared<PaStreamParameters>()};
     std::shared_ptr<PaStreamParameters> outputParameters {std::make_shared<PaStreamParameters>()};
     std::shared_ptr<CallbackData> callbackData {std::make_shared<CallbackData>()};
 
@@ -54,6 +64,7 @@ AudioManager::~AudioManager()
             m->soundIsRunning = false;
         }
     }
+    opus_custom_encoder_destroy(m->encoder);
 }
 
 bool AudioManager::Initialize(
@@ -142,6 +153,19 @@ void AudioManager::SendAudioInputToServer(const spAudioData_t &spInputAudioData)
 {
     Q_EMIT sigSendAudioInputToServer(spInputAudioData);
 }
+
+/*bool AudioManager::EncodeWithOpus(opus_int16 *inputAudio)
+{
+    unsigned char* encodedData;
+    //auto encodedData = opus_custom_encode(m->encoder, inputAudio, m->framesPerBuffer, encodedData,)
+    return false;
+}*/
+
+bool AudioManager::DecodeWithOpus(spAudioData_t &spReflectedAudioData)
+{
+    return false;
+}
+
 
 #pragma region PRIVATE MEMBER FUNCTIONS
 
@@ -252,6 +276,24 @@ void AudioManager::ConfigurePortaudioParameters() {
         paInt16,
         coreAudioOutputInfo,
         m->suggestedLatency);
+}
+
+void AudioManager::ConfigureOpus()
+{
+    /*int err;
+    m->opusMode = opus_custom_mode_create(m->sampleRate, m->framesPerBuffer, &err);
+
+    if (err != OPUS_OK) {
+        qInfo() << "Audiomanager: Cannot create Opus Mode - Error: " << opus_strerror(err);
+        exit(EXIT_FAILURE);
+    }
+
+    m-> encoder = opus_custom_encoder_create(m->opusMode, m->audioChannels, &err);
+    if (err != OPUS_OK) {
+        qInfo() << "Audiomanager:Cannot create Opus Encoder: " <<  opus_strerror(err);
+        exit(EXIT_FAILURE);
+    }*/
+
 }
 
 #pragma endregion
