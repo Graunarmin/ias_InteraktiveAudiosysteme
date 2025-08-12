@@ -86,6 +86,8 @@ int main(int argc, char *argv[])
         audioManager.StartAudioStream();
     }
 
+
+//
     /// Signals + Slots
     //Reporter reporter;
     //Observer observer;

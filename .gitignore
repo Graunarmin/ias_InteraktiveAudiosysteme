@@ -23,7 +23,7 @@
 # Compiled Static libraries
 *.lai
 *.la
-#*.a
+*.a
 #*.lib
 
 # Executables
@@ -49,3 +49,4 @@ ias.pro.user
 # Other
 include/
 ias.zsh
+lib/

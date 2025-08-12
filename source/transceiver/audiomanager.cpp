@@ -25,8 +25,10 @@ struct AudioManager::Impl
     // 16-bit integer (short)
     opus_int16 *shortBuffer, *channel1Short, *channel2Short;
 
+    OpusCustomDecoder *decoder;
     OpusCustomEncoder *encoder;
     OpusCustomMode *opusMode;
+    int maxSizeOfEncodedDataInBytes = 1000;
 
     unsigned char *celtDone, *channel1Done;
 
@@ -65,6 +67,8 @@ AudioManager::~AudioManager()
         }
     }
     opus_custom_encoder_destroy(m->encoder);
+    opus_custom_decoder_destroy(m->decoder);
+    opus_custom_mode_destroy(m->opusMode);
 }
 
 bool AudioManager::Initialize(
@@ -154,16 +158,25 @@ void AudioManager::SendAudioInputToServer(const spAudioData_t &spInputAudioData)
     Q_EMIT sigSendAudioInputToServer(spInputAudioData);
 }
 
-/*bool AudioManager::EncodeWithOpus(opus_int16 *inputAudio)
+int AudioManager::EncodeWithOpus(const opus_int16 *inputAudio, unsigned char* encodedData)
 {
-    unsigned char* encodedData;
-    //auto encodedData = opus_custom_encode(m->encoder, inputAudio, m->framesPerBuffer, encodedData,)
-    return false;
-}*/
+    qDebug() << "Y";
+    encodedData = new unsigned char[m->maxSizeOfEncodedDataInBytes]();
+    qDebug() << "Z";
+    //TODO: fix program crashing here
+    int length = opus_custom_encode(m->encoder, inputAudio, m->framesPerBuffer, encodedData, m->maxSizeOfEncodedDataInBytes);
+    qDebug() << "P";
+    return length;
+}
 
-bool AudioManager::DecodeWithOpus(spAudioData_t &spReflectedAudioData)
+opus_int16* AudioManager::DecodeWithOpus(spAudioData_t &spReflectedAudioData, int length)
 {
-    return false;
+    const unsigned char* reflectedData = reinterpret_cast<const unsigned char*>(spReflectedAudioData->data());
+    //divided by 2 because a opus_int16 has 2 Bytes
+    opus_int16 *decodedData = new opus_int16[m->maxSizeOfEncodedDataInBytes/2]();
+    int err = opus_custom_decode(m->decoder, reflectedData, length, decodedData, m->framesPerBuffer);
+    if(err != OPUS_OK) qWarning() << "ERROR: opus_custom_decode";
+    return decodedData;
 }
 
 
@@ -280,20 +293,23 @@ void AudioManager::ConfigurePortaudioParameters() {
 
 void AudioManager::ConfigureOpus()
 {
-    /*int err;
+    int err;
     m->opusMode = opus_custom_mode_create(m->sampleRate, m->framesPerBuffer, &err);
 
     if (err != OPUS_OK) {
         qInfo() << "Audiomanager: Cannot create Opus Mode - Error: " << opus_strerror(err);
         exit(EXIT_FAILURE);
     }
-
+    m->decoder = opus_custom_decoder_create(m->opusMode, m->audioChannels, &err);
+    if (err != OPUS_OK) {
+        qInfo() << "Audiomanager:Cannot create Opus Decoder: " <<  opus_strerror(err);
+        exit(EXIT_FAILURE);
+    }
     m-> encoder = opus_custom_encoder_create(m->opusMode, m->audioChannels, &err);
     if (err != OPUS_OK) {
         qInfo() << "Audiomanager:Cannot create Opus Encoder: " <<  opus_strerror(err);
         exit(EXIT_FAILURE);
-    }*/
-
+    }
 }
 
 #pragma endregion

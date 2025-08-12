@@ -30,6 +30,7 @@ public:
         const QString& ipIn,
         const QString& portIn);
 
+
     /*! Tries to open and start the portaudio stream. */
     void StartAudioStream() const;
 
@@ -48,8 +49,8 @@ public:
      * @return True if there was any data in the queue, false otherwise.
      */
     bool GetReceivedAudioData(spAudioData_t &spReflectedAudioData) const;
-    //bool EncodeWithOpus(opus_int16 *inputAudio);
-    bool DecodeWithOpus(spAudioData_t &spReflectedAudioData);
+    int EncodeWithOpus(const opus_int16 *inputAudio, unsigned char* encodedData);
+    opus_int16* DecodeWithOpus(spAudioData_t &spReflectedAudioData, int length);
 
 
 private:

@@ -34,33 +34,38 @@ int PortAudioCallback(const void *inputBuffer,
     qDebug() << "PortAudioCallback: Input Buffer size:" << sizeof(&inputBuffer);
     // Input- und Outputbuffer definieren
     auto input = static_cast<const char *> (inputBuffer);
+    qDebug() << "P";
     const auto output = static_cast<char *>(outputBuffer);
+    qDebug() << "Q";
+    const opus_int16* inputForOpus = static_cast<const opus_int16 *> (inputBuffer);
+    qDebug() << "R";
 
-    auto inputArray = static_cast<const short *> (inputBuffer);
-
-    //pCallbackData->pAudioManager->EncodeWithOpus()
-
+    unsigned char* encoded;
+    int length = pCallbackData->pAudioManager->EncodeWithOpus(inputForOpus, encoded); //TODO: Sent length to server
+    qDebug() << "S";
+    const char* encodedd = reinterpret_cast<const char*> (encoded);
     // send input to server
-    auto spAudioData = std::make_shared<QByteArray>(input, framesPerBuffer *2);
+    auto spAudioData = std::make_shared<QByteArray>(encodedd, framesPerBuffer *2);
     pCallbackData->pAudioManager->SendAudioInputToServer(spAudioData);
 
     // input direkt in den output schreiben
     for (unsigned int i=0; i < framesPerBuffer * 2; i++)
     {
-        output[i] = input[i];
+        //output[i] = input[i];
     }
 
     // Get received data from buffer
     std::shared_ptr<QByteArray> spReceivedData;
     bool success = pCallbackData->pAudioManager->GetReceivedAudioData(spReceivedData);
-
+    int lengthToDecode = 1; //TODO: get real length from server
     if (success)
     {
-        const auto receivedData = spReceivedData->data();
+        //const auto receivedData = spReceivedData->data();
         //const auto receivedSize = spReceivedData->size();
+        auto decodedData = pCallbackData->pAudioManager->DecodeWithOpus(spReceivedData, lengthToDecode);
         for (unsigned int i=0; i < framesPerBuffer * 2; i++)
         {
-            output[i] += receivedData[i];
+            output[i] += decodedData[i];
         }
     }
 

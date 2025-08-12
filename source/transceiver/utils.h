@@ -5,8 +5,9 @@
 #include <QUdpSocket>
 #include <QDebug>
 #include <thread>
-#include "../../include/portaudio-snapshot/include/portaudio.h"
-#include "../../include/portaudio-snapshot/include/pa_mac_core.h"
+#include "portaudio.h"
+#include "pa_mac_core.h"
+
 
 /// ---- typedef ----
 using spAudioData_t = std::shared_ptr<QByteArray>;
@@ -35,5 +36,7 @@ void ReadInPort(QString& ipIn, QString& portIn);
  * \return True if both parameters are valid, false if at least one parameter is not.
  */
 bool VerifyIpAndPort(const QString& ipIn, const QString &portIn, QHostAddress& ipOut, quint16& portOut);
+
+
 
 #endif //UTILS_H
