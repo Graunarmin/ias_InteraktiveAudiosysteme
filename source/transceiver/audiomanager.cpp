@@ -28,7 +28,7 @@ struct AudioManager::Impl
     OpusCustomDecoder *decoder;
     OpusCustomEncoder *encoder;
     OpusCustomMode *opusMode;
-    int maxSizeOfEncodedDataInBytes = 1000;
+    int maxSizeOfEncodedDataInBytes = 512;
 
     unsigned char *celtDone, *channel1Done;
 

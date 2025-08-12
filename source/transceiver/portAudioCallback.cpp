@@ -30,22 +30,57 @@ int PortAudioCallback(const void *inputBuffer,
                             void *userData)
 {
     const auto pCallbackData = static_cast<CallbackData *>(userData);
-
-    qDebug() << "PortAudioCallback: Input Buffer size:" << sizeof(&inputBuffer);
+    qDebug() << "PortAudioCallback: Input Buffer size, framesPerBuffer:" << sizeof(&inputBuffer) << ", " << framesPerBuffer;
     // Input- und Outputbuffer definieren
     auto input = static_cast<const char *> (inputBuffer);
-    qDebug() << "P";
     const auto output = static_cast<char *>(outputBuffer);
-    qDebug() << "Q";
-    const opus_int16* inputForOpus = static_cast<const opus_int16 *> (inputBuffer);
-    qDebug() << "R";
 
-    unsigned char* encoded;
-    int length = pCallbackData->pAudioManager->EncodeWithOpus(inputForOpus, encoded); //TODO: Sent length to server
-    qDebug() << "S";
-    const char* encodedd = reinterpret_cast<const char*> (encoded);
+    //encoder action
+    const int maxLength = framesPerBuffer*4; //1276 scheint grade max in der praxis bei framesperbuffer 512
+    const int frameSize = 512;
+    const int sampleRate = 48000;
+    const int channels = 1;
+    int err;
+    opus_int16 *decodedData = new opus_int16[frameSize*channels*sizeof(opus_int16)]();
+    const opus_int16* inputForOpus = reinterpret_cast<const opus_int16 *> (input); //Length of "array": framesPerBuffer?
+    unsigned char* encoded = new unsigned char[maxLength]();
+
+    /*
+    auto mode = opus_custom_mode_create(sampleRate, frameSize, &err);
+    OpusCustomEncoder *encoder = opus_custom_encoder_create(mode, channels, &err);
+    if(err != OPUS_OK) qDebug() << "PortAudioCallback: OpusCustomEncoder creation failed: " << err;
+    int length = opus_custom_encode(encoder, inputForOpus, frameSize, encoded, maxLength);
+    if(length < 0) qDebug() << "PortAudioCallback: OpusCustomEncoder failed encoding: " << length;
+    else qDebug() << "Encoded To A Length Of Bytes: " << length;
+    opus_custom_encoder_destroy(encoder);
+    //int length = pCallbackData->pAudioManager->EncodeWithOpus(inputForOpus, encoded); //TODO: Sent length to server
+    const char* encodedConst = reinterpret_cast<const char*> (encoded);
+    //TODO: instead of create/destroy reset? opus_custom_encoder_ctl(encoder, OPUS_RESET_STATE)
+    // Doc says: Do not re-initialize for every frame
+    //decoder action
+    int lengthToDecode = length; //TODO: get real length from server
+    OpusCustomDecoder *decoder = opus_custom_decoder_create(mode, channels, &err);
+    if(err != OPUS_OK) qDebug() << "PortAudioCallback: OpusCustomDecoder creation failed: " << err;
+    int samples = opus_custom_decode(decoder, encodedConst, lengthToDecode, decodedData, frameSize); //samples should be framesize?
+    if(samples < 0) qDebug() << "PortAudioCallback: OpusCustomDecoder failed decoding: " << samples;
+    else qDebug() << "Decoded samples: " << samples;
+    const char* decodedConst = reinterpret_cast<const char*> (decodedData);
+    opus_custom_decoder_destroy(decoder);
+    */
+
+    //Not custom encoder
+    OpusEncoder *encoder = opus_encoder_create(sampleRate, channels, OPUS_APPLICATION_VOIP, err);
+    if(err != OPUS_OK) qDebug() << "PortAudioCallback: OpusEncoder creation failed: " << err;
+    opus_int32 length = opus_encode(encoder, inputForOpus, framesPerBuffer, encoded, maxLength);
+    if(length < 0) qDebug() << "PortAudioCallback: OpusEncoder failed encoding: " << length;
+    else qDebug() << "Encoded To A Length Of Bytes: " << length;
+    OpusDecoder *decoder = opus_decoder_create(sampleRate, channels, err);
+    if(err != OPUS_OK) qDebug() << "PortAudioCallback: OpusDecoder creation failed: " << err;
+    int samples = opus_decode(decoder, encoded, length, decodedData, framesPerBuffer, 0); //flag if error correction data is decoded
+    if(samples < 0) qDebug() << "PortAudioCallback: OpusDecoder failed decoding: " << samples;
+    else qDebug() << "Decoded samples: " << samples;
     // send input to server
-    auto spAudioData = std::make_shared<QByteArray>(encodedd, framesPerBuffer *2);
+    auto spAudioData = std::make_shared<QByteArray>(encodedConst, length);
     pCallbackData->pAudioManager->SendAudioInputToServer(spAudioData);
 
     // input direkt in den output schreiben
@@ -57,18 +92,22 @@ int PortAudioCallback(const void *inputBuffer,
     // Get received data from buffer
     std::shared_ptr<QByteArray> spReceivedData;
     bool success = pCallbackData->pAudioManager->GetReceivedAudioData(spReceivedData);
-    int lengthToDecode = 1; //TODO: get real length from server
+
     if (success)
     {
-        //const auto receivedData = spReceivedData->data();
+        const auto receivedData = spReceivedData->data();
         //const auto receivedSize = spReceivedData->size();
-        auto decodedData = pCallbackData->pAudioManager->DecodeWithOpus(spReceivedData, lengthToDecode);
-        for (unsigned int i=0; i < framesPerBuffer * 2; i++)
+        //auto decodedData = pCallbackData->pAudioManager->DecodeWithOpus(spReceivedData, lengthToDecode);
+
+        for (unsigned int i=0; i < samples * 2; i++)
         {
-            output[i] += decodedData[i];
+            output[i] = decodedConst[i];
+            //output[i] += decodedConst[i];
+            //qDebug() << "Output: " << output[i] << " " << input[i];
         }
     }
 
     //qDebug() << "Output Inhalt: " << *output;
+    opus_custom_mode_destroy(mode);
     return 0;
 }
