@@ -68,6 +68,7 @@ int PortAudioCallback(const void *inputBuffer,
     opus_custom_decoder_destroy(decoder);
     */
 
+
     //Not custom encoder
     OpusEncoder *encoder = opus_encoder_create(sampleRate, channels, OPUS_APPLICATION_VOIP, err);
     if(err != OPUS_OK) qDebug() << "PortAudioCallback: OpusEncoder creation failed: " << err;
