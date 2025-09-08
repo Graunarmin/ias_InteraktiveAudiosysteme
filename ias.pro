@@ -70,6 +70,8 @@ INCLUDEPATH += ./include/
 INCLUDEPATH += ./include/portaudio-snapshot/include/
 INCLUDEPATH += ./include/opus-1.5.2/include/
 
+QMAKE_MACOSX_DEPLOYMENT_TARGET = 15.0
+
 CONFIG += thread qt warn_on exceptions
 
 CONFIG += console c++17 cmdline sdk_no_version_check

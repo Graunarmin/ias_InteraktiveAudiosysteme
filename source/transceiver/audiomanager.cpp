@@ -25,8 +25,10 @@ struct AudioManager::Impl
     // 16-bit integer (short)
     opus_int16 *shortBuffer, *channel1Short, *channel2Short;
 
-    OpusCustomEncoder *encoder;
+    //OpusCustomEncoder *encoder;
     OpusCustomMode *opusMode;
+
+    OpusEncoder *encoder;
 
     unsigned char *celtDone, *channel1Done;
 
@@ -64,7 +66,7 @@ AudioManager::~AudioManager()
             m->soundIsRunning = false;
         }
     }
-    opus_custom_encoder_destroy(m->encoder);
+    opus_encoder_destroy(m->encoder);
 }
 
 bool AudioManager::Initialize(
@@ -280,7 +282,7 @@ void AudioManager::ConfigurePortaudioParameters() {
 
 void AudioManager::ConfigureOpus()
 {
-    /*int err;
+    int err;
     m->opusMode = opus_custom_mode_create(m->sampleRate, m->framesPerBuffer, &err);
 
     if (err != OPUS_OK) {
@@ -288,7 +290,7 @@ void AudioManager::ConfigureOpus()
         exit(EXIT_FAILURE);
     }
 
-    m-> encoder = opus_custom_encoder_create(m->opusMode, m->audioChannels, &err);
+    /*m-> encoder = opus_custom_encoder_create(m->opusMode, m->audioChannels, &err);
     if (err != OPUS_OK) {
         qInfo() << "Audiomanager:Cannot create Opus Encoder: " <<  opus_strerror(err);
         exit(EXIT_FAILURE);
