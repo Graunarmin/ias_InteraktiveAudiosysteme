@@ -44,6 +44,7 @@ int PortAudioCallback(const void *inputBuffer,
     auto spAudioData = std::make_shared<QByteArray>(input, framesPerBuffer *2);
     pCallbackData->pAudioManager->SendAudioInputToServer(spAudioData);
 
+
     // input direkt in den output schreiben
     for (unsigned int i=0; i < framesPerBuffer * 2; i++)
     {

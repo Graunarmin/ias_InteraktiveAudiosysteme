@@ -48,7 +48,7 @@ public:
      * @return True if there was any data in the queue, false otherwise.
      */
     bool GetReceivedAudioData(spAudioData_t &spReflectedAudioData) const;
-    //bool EncodeWithOpus(opus_int16 *inputAudio);
+    spAudioData_t EncodeWithOpus(const spAudioData_t &spInputAudioData)const;
     bool DecodeWithOpus(spAudioData_t &spReflectedAudioData);
 
 

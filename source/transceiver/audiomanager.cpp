@@ -22,15 +22,12 @@ struct AudioManager::Impl
     int outputDeviceIndex {1};
 
     /// OPUS
-    // 16-bit integer (short)
-    opus_int16 *shortBuffer, *channel1Short, *channel2Short;
+    int opusError {};
+    const int maxCompressedLength{framesPerBuffer * 4};
 
-    //OpusCustomEncoder *encoder;
-    OpusCustomMode *opusMode;
-
-    OpusEncoder *encoder;
-
-    unsigned char *celtDone, *channel1Done;
+    OpusCustomMode *opusMode {};
+    OpusCustomEncoder *encoder {};
+    OpusCustomDecoder *decoder {};
 
 
     /// ---- Stream/Callback Configuration ----
@@ -66,7 +63,9 @@ AudioManager::~AudioManager()
             m->soundIsRunning = false;
         }
     }
-    opus_encoder_destroy(m->encoder);
+    opus_custom_encoder_destroy(m->encoder);
+    opus_custom_decoder_destroy(m->decoder);
+    opus_custom_mode_destroy(m->opusMode);
 }
 
 bool AudioManager::Initialize(
@@ -91,6 +90,8 @@ bool AudioManager::Initialize(
     if (!ConfigureAudioParameters(framesPerBuffer, sampleRate, audioChannels)) return false;
 
     ConfigurePortaudioParameters();
+
+    ConfigureOpus();
 
     connect(&m->client, &Client::signalReceivedAudioData,this, &AudioManager::slotReceivedAudioData);
     connect(this, &AudioManager::sigSendAudioInputToServer, this, &AudioManager::slotSendAudioInputToServer);
@@ -153,15 +154,28 @@ bool AudioManager::GetReceivedAudioData(spAudioData_t &spReflectedAudioData) con
 
 void AudioManager::SendAudioInputToServer(const spAudioData_t &spInputAudioData) const
 {
-    Q_EMIT sigSendAudioInputToServer(spInputAudioData);
+    // ToDo: Add option for encoding
+    auto encodedData = EncodeWithOpus(spInputAudioData);
+    Q_EMIT sigSendAudioInputToServer(encodedData);
 }
 
-/*bool AudioManager::EncodeWithOpus(opus_int16 *inputAudio)
+spAudioData_t AudioManager::EncodeWithOpus(const spAudioData_t &spInputAudioData) const
 {
-    unsigned char* encodedData;
-    //auto encodedData = opus_custom_encode(m->encoder, inputAudio, m->framesPerBuffer, encodedData,)
-    return false;
-}*/
+    const opus_int16* inputForOpus = reinterpret_cast<const opus_int16 *> (spInputAudioData->data());
+    unsigned char * encodedData = new unsigned char[m->maxCompressedLength]();
+
+    int length = opus_custom_encode(m->encoder, inputForOpus, m->framesPerBuffer,
+                                    encodedData, m->maxCompressedLength);
+    if (length < 0)
+    {
+        qInfo() << "Audiomanager: Opus encountered an error while encoding input Data.";
+    }
+    const char * encodedInput = reinterpret_cast<const char *> (encodedData);
+    auto spInput = std::make_shared<QByteArray>(encodedInput, length);
+
+    opus_custom_encoder_ctl(m->encoder, OPUS_RESET_STATE);
+    return spInput;
+}
 
 bool AudioManager::DecodeWithOpus(spAudioData_t &spReflectedAudioData)
 {
@@ -282,20 +296,23 @@ void AudioManager::ConfigurePortaudioParameters() {
 
 void AudioManager::ConfigureOpus()
 {
-    int err;
-    m->opusMode = opus_custom_mode_create(m->sampleRate, m->framesPerBuffer, &err);
-
-    if (err != OPUS_OK) {
-        qInfo() << "Audiomanager: Cannot create Opus Mode - Error: " << opus_strerror(err);
+    m->opusMode = opus_custom_mode_create(m->sampleRate, m->framesPerBuffer, &m->opusError);
+    if (m->opusError != OPUS_OK) {
+        qInfo() << "Audiomanager: Cannot create Opus Mode - Error: " << opus_strerror(m->opusError);
         exit(EXIT_FAILURE);
     }
 
-    /*m-> encoder = opus_custom_encoder_create(m->opusMode, m->audioChannels, &err);
-    if (err != OPUS_OK) {
-        qInfo() << "Audiomanager:Cannot create Opus Encoder: " <<  opus_strerror(err);
+    m->encoder = opus_custom_encoder_create(m->opusMode, m->audioChannels, &m->opusError);
+    if (m->opusError != OPUS_OK) {
+        qInfo() << "Audiomanager: Cannot create Opus Encoder - Error: " << opus_strerror(m->opusError);
         exit(EXIT_FAILURE);
-    }*/
+    }
 
+    m->decoder = opus_custom_decoder_create(m->opusMode, m->audioChannels, &m->opusError);
+    if(m->opusError != OPUS_OK)
+    {
+        qInfo() << "Audiomanager: OpusCustomDecoder creation failed: " << opus_strerror(m->opusError);
+    }
 }
 
 #pragma endregion
