@@ -19,6 +19,8 @@ void ConfigurePaStreamParameters(const std::shared_ptr<PaStreamParameters> &para
 
 void LogAudioDeviceInformation(const int amountOfAudioDevices)
 {
+    qInfo() << "\n";
+    qInfo() << "---- LIST OF AUDIO DEVICES ----";
     for(int i = 0; i <= (amountOfAudioDevices - 1); i++)
     {
         const auto deviceInfo = Pa_GetDeviceInfo(i);
@@ -28,6 +30,7 @@ void LogAudioDeviceInformation(const int amountOfAudioDevices)
         qInfo() << "Max. output channels: " << deviceInfo->maxOutputChannels;
         qInfo() << "Max. input channels: " << deviceInfo->maxInputChannels;
         qInfo() << "Default sample rate: " << deviceInfo->defaultSampleRate;
+        qInfo() << "\n";
     }
 }
 
@@ -42,11 +45,11 @@ bool VerifyDeviceIndex(const QString &indexString, const int amountOfAudioDevice
             return true;
         }
         indexOut = -1;
-        qInfo() << "Audio device index out of range.";
+        qWarning() << "Audio device index out of range.";
         return false;
     }
     indexOut = -1;
-    qInfo() << "Audio device index is not a valid number";
+    qWarning() << "Audio device index is not a valid number";
     return false;
 }
 
@@ -75,19 +78,19 @@ bool VerifyIpAndPort(const QString& ipIn, const QString &portIn, QHostAddress& i
         }
         else
         {
-            qInfo() << "Invalid port. Terminating.";
+            qWarning() << "Invalid port. Terminating.";
             success = false;
         }
     }
     else
     {
-        qInfo() << "Invalid port. Terminating.";
+        qWarning() << "Invalid port. Terminating.";
         success = false;
     }
 
     if(const auto ip = QHostAddress(ipIn); ip.isNull())
     {
-        qInfo() << "Invalid IP-Address. Terminating";
+        qWarning() << "Invalid IP-Address. Terminating";
         success = false;
     }
     else
