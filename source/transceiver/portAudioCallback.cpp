@@ -56,6 +56,7 @@ int PortAudioCallback(const void *inputBuffer,
         //const auto receivedSize = spReceivedData->size();
         for (unsigned int i=0; i < framesPerBuffer * 2; i++)
         {
+            //output[i] = receivedData[i];
             output[i] += receivedData[i];
         }
     }

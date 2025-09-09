@@ -366,7 +366,7 @@ spAudioData_t AudioManager::DecodeWithOpus(const spAudioData_t &spReflectedAudio
     }
 
     // CHECK: Not sure if "samples" is the size needed here
-    auto spDecodedData = std::make_shared<QByteArray>(reinterpret_cast<const char *> (decodedAudioData), samples);
+    auto spDecodedData = std::make_shared<QByteArray>(reinterpret_cast<const char *> (decodedAudioData), m->framesPerBuffer*2);
 
     opus_custom_decoder_ctl(m->decoder, OPUS_RESET_STATE);
     return spDecodedData;
