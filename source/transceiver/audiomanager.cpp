@@ -1,3 +1,4 @@
+// ReSharper disable CppMemberFunctionMayBeConst
 #include "audiomanager.h"
 
 struct AudioManager::Impl
@@ -6,6 +7,7 @@ struct AudioManager::Impl
     mutable bool audiofault {false};
     mutable bool soundIsRunning {false};
     mutable PaError portAudioError{};
+    mutable int opusError {};
 
     /// ---- Audio Configuration ----
     int amountOfAudioDevices {-1};
@@ -15,29 +17,24 @@ struct AudioManager::Impl
     int sampleRate {48000}; ///48 kHz
     float suggestedLatency {0.001f};
     int audioChannels {1};
-    /// buffer size is computed later as framesPerBuffer * audioChannels * 2
+    /// buffer size is framesPerBuffer * audioChannels * 2
     unsigned short bufferSize {};
     PaSampleFormat sampleFormat {paInt16};
     int inputDeviceIndex {0};
     int outputDeviceIndex {1};
-
-    /// OPUS
-    // 16-bit integer (short)
-    opus_int16 *shortBuffer, *channel1Short, *channel2Short;
-
-    OpusCustomDecoder *decoder;
-    OpusCustomEncoder *encoder;
-    OpusCustomMode *opusMode;
-    int maxSizeOfEncodedDataInBytes = 512;
-
-    unsigned char *celtDone, *channel1Done;
-
 
     /// ---- Stream/Callback Configuration ----
     PaStream *stream{};
     std::shared_ptr<PaStreamParameters> inputParameters{std::make_shared<PaStreamParameters>()};
     std::shared_ptr<PaStreamParameters> outputParameters {std::make_shared<PaStreamParameters>()};
     std::shared_ptr<CallbackData> callbackData {std::make_shared<CallbackData>()};
+
+    /// ---- OPUS ----
+    bool opusEncoding {true};
+    const int maxCompressedLength{framesPerBuffer * 4};
+    OpusCustomMode *opusMode {};
+    OpusCustomEncoder *encoder {};
+    OpusCustomDecoder *decoder {};
 
     /// ---- Send audio ----
     Client client{nullptr};
@@ -72,6 +69,7 @@ AudioManager::~AudioManager()
 }
 
 bool AudioManager::Initialize(
+    const QString& encodingEnabled,
     const QString& framesPerBuffer,
     const QString& sampleRate,
     const QString& audioChannels,
@@ -93,6 +91,7 @@ bool AudioManager::Initialize(
     if (!ConfigureAudioParameters(framesPerBuffer, sampleRate, audioChannels)) return false;
 
     ConfigurePortaudioParameters();
+    ConfigureOpusEncoding(encodingEnabled);
 
     connect(&m->client, &Client::signalReceivedAudioData,this, &AudioManager::slotReceivedAudioData);
     connect(this, &AudioManager::sigSendAudioInputToServer, this, &AudioManager::slotSendAudioInputToServer);
@@ -140,6 +139,16 @@ void AudioManager::StartAudioStream() const {
     }
 }
 
+void AudioManager::ProcessAudioInput(const spAudioData_t &spInputAudioData) const
+{
+    spAudioData_t dataReadyToSend {spInputAudioData};
+    if (m->opusEncoding)
+    {
+        dataReadyToSend = EncodeWithOpus(spInputAudioData);
+    }
+    SendAudioInputToServer(dataReadyToSend);
+}
+
 bool AudioManager::GetReceivedAudioData(spAudioData_t &spReflectedAudioData) const
 {
     bool success = false;
@@ -147,42 +156,29 @@ bool AudioManager::GetReceivedAudioData(spAudioData_t &spReflectedAudioData) con
 
     if (!m->queuedPointersToReturnedAudioDataBuffers.empty())
     {
-        spReflectedAudioData = m->queuedPointersToReturnedAudioDataBuffers.dequeue();
+        if (m->opusEncoding)
+        {
+            spReflectedAudioData = DecodeWithOpus(m->queuedPointersToReturnedAudioDataBuffers.dequeue());
+        }
+        else
+        {
+            spReflectedAudioData = m->queuedPointersToReturnedAudioDataBuffers.dequeue();
+        }
+
         success = true;
     }
+    else
+    {
+        qDebug() << "Audiomanager: No data received, queue was empty.";
+    }
     return success;
-}
-
-void AudioManager::SendAudioInputToServer(const spAudioData_t &spInputAudioData) const
-{
-    Q_EMIT sigSendAudioInputToServer(spInputAudioData);
-}
-
-int AudioManager::EncodeWithOpus(const opus_int16 *inputAudio, unsigned char* encodedData)
-{
-    qDebug() << "Y";
-    encodedData = new unsigned char[m->maxSizeOfEncodedDataInBytes]();
-    qDebug() << "Z";
-    //TODO: fix program crashing here
-    int length = opus_custom_encode(m->encoder, inputAudio, m->framesPerBuffer, encodedData, m->maxSizeOfEncodedDataInBytes);
-    qDebug() << "P";
-    return length;
-}
-
-opus_int16* AudioManager::DecodeWithOpus(spAudioData_t &spReflectedAudioData, int length)
-{
-    const unsigned char* reflectedData = reinterpret_cast<const unsigned char*>(spReflectedAudioData->data());
-    //divided by 2 because a opus_int16 has 2 Bytes
-    opus_int16 *decodedData = new opus_int16[m->maxSizeOfEncodedDataInBytes/2]();
-    int err = opus_custom_decode(m->decoder, reflectedData, length, decodedData, m->framesPerBuffer);
-    if(err != OPUS_OK) qWarning() << "ERROR: opus_custom_decode";
-    return decodedData;
 }
 
 
 #pragma region PRIVATE MEMBER FUNCTIONS
 
-void AudioManager::InitPortAudio() {
+void AudioManager::InitPortAudio()
+{
     m->portAudioError = Pa_Initialize();
 
     if(m->portAudioError != paNoError)
@@ -205,6 +201,7 @@ bool AudioManager::ConfigureAudioDevices(const QString& inDeviceIndex, const QSt
     bool success = false;
     QTextStream qin(stdin);
 
+    qInfo() << "--> User input required: ";
     qInfo() << "The index for the input device is currently set to " << m->inputDeviceIndex<<
         " and the index for the output device is set to " << m->outputDeviceIndex << ".";
     qInfo() << "Do you wish to change these settings? [y/n]";
@@ -224,6 +221,8 @@ bool AudioManager::ConfigureAudioDevices(const QString& inDeviceIndex, const QSt
             qWarning() << "The index for the output device is not a valid number.";
             return success;
         }
+        qInfo() << "\n";
+        qInfo() << "Proceeding with initialization ...";
         return success;
     }
 
@@ -241,6 +240,8 @@ bool AudioManager::ConfigureAudioDevices(const QString& inDeviceIndex, const QSt
         success = VerifyDeviceIndex(outputIndex, m->amountOfAudioDevices, m->outputDeviceIndex);
     }
     qDebug() << "New index for input device: " << m->inputDeviceIndex << ", new index for output device: " << m->outputDeviceIndex;
+    qInfo() << "\n";
+    qInfo() << "Proceeding with initialization ...";
     return success;
 }
 
@@ -269,7 +270,8 @@ bool AudioManager::ConfigureAudioParameters(const QString& framesPerBuffer, cons
     return success;
 }
 
-void AudioManager::ConfigurePortaudioParameters() {
+void AudioManager::ConfigurePortaudioParameters()
+{
     /// Configure input parameters
     static PaMacCoreStreamInfo coreAudioInputInfo;
     ConfigurePaStreamParameters(
@@ -291,39 +293,103 @@ void AudioManager::ConfigurePortaudioParameters() {
         m->suggestedLatency);
 }
 
-void AudioManager::ConfigureOpus()
+void AudioManager::ConfigureOpusEncoding(const QString& encodingEnabled)
 {
-    int err;
-    m->opusMode = opus_custom_mode_create(m->sampleRate, m->framesPerBuffer, &err);
+    const QList<QString> trueValues = {"true", "TRUE", "True", "t", "T", "1"};
+    if (!trueValues.contains(encodingEnabled))
+    {
+        m->opusEncoding = false;
+        qInfo() << "Encoding disabled.";
+        return;
+    }
+    m->opusEncoding = true;
+    qInfo() << "Encoding enabled.";
 
-    if (err != OPUS_OK) {
-        qInfo() << "Audiomanager: Cannot create Opus Mode - Error: " << opus_strerror(err);
-        exit(EXIT_FAILURE);
+    m->opusMode = opus_custom_mode_create(m->sampleRate, m->framesPerBuffer, &m->opusError);
+    if (m->opusError != OPUS_OK) {
+        qWarning() << "Audiomanager: Cannot create Opus Mode - Error: " << opus_strerror(m->opusError);
+        qWarning() << "Disabling Encoding.";
+        m->opusEncoding = false;
     }
-    m->decoder = opus_custom_decoder_create(m->opusMode, m->audioChannels, &err);
-    if (err != OPUS_OK) {
-        qInfo() << "Audiomanager:Cannot create Opus Decoder: " <<  opus_strerror(err);
-        exit(EXIT_FAILURE);
+
+    m->encoder = opus_custom_encoder_create(m->opusMode, m->audioChannels, &m->opusError);
+    if (m->opusError != OPUS_OK) {
+        qWarning() << "Audiomanager: Cannot create Opus Encoder - Error: " << opus_strerror(m->opusError);
+        qWarning() << "Disabling Encoding.";
+        m->opusEncoding = false;
     }
-    m-> encoder = opus_custom_encoder_create(m->opusMode, m->audioChannels, &err);
-    if (err != OPUS_OK) {
-        qInfo() << "Audiomanager:Cannot create Opus Encoder: " <<  opus_strerror(err);
-        exit(EXIT_FAILURE);
+
+    m->decoder = opus_custom_decoder_create(m->opusMode, m->audioChannels, &m->opusError);
+    if(m->opusError != OPUS_OK)
+    {
+        qWarning() << "Audiomanager: OpusCustomDecoder creation failed: " << opus_strerror(m->opusError);
+        qWarning() << "Disabling Encoding.";
+        m->opusEncoding = false;
     }
+}
+
+spAudioData_t AudioManager::EncodeWithOpus(const spAudioData_t &spInputAudioData) const
+{
+    const auto inputForOpus = reinterpret_cast<const opus_int16 *> (spInputAudioData->data());
+    auto *encodedAudioData = new unsigned char[m->maxCompressedLength]();
+
+    qDebug() << "Audiomanager: Encoding audio data with a maximum of " << m->maxCompressedLength << " bytes.";
+
+    int length = opus_custom_encode(m->encoder, inputForOpus, m->framesPerBuffer,
+                                    encodedAudioData, m->maxCompressedLength);
+    if (length < 0)
+    {
+        qWarning() << "Audiomanager: Opus encountered an error while encoding input data.";
+    }
+
+    auto spEncodedInputData = std::make_shared<QByteArray>(reinterpret_cast<const char *> (encodedAudioData), length);
+
+    opus_custom_encoder_ctl(m->encoder, OPUS_RESET_STATE);
+    return spEncodedInputData;
+}
+
+spAudioData_t AudioManager::DecodeWithOpus(const spAudioData_t &spReflectedAudioData) const
+{
+    const auto inputForOpus = reinterpret_cast<const unsigned char *> (spReflectedAudioData->data());
+
+    // CHECK: not sure if length() is cast to int correctly
+    const int lengthToDecode {static_cast<int>(spReflectedAudioData->length())};
+    auto *decodedAudioData = new opus_int16[m->framesPerBuffer*m->audioChannels*sizeof(opus_int16)]();
+
+    qDebug() << "Audiomanager: Decoding data of size " << lengthToDecode << " bytes.";
+    int samples = opus_custom_decode(m->decoder, inputForOpus, lengthToDecode,
+                                    decodedAudioData, m->framesPerBuffer);
+
+    if (samples < 0)
+    {
+        qWarning() << "Audiomanager: Opus encountered an error while decoding data.";
+    }
+
+    // CHECK: Not sure if "samples" is the size needed here
+    auto spDecodedData = std::make_shared<QByteArray>(reinterpret_cast<const char *> (decodedAudioData), samples);
+
+    opus_custom_decoder_ctl(m->decoder, OPUS_RESET_STATE);
+    return spDecodedData;
+}
+
+void AudioManager::SendAudioInputToServer(const spAudioData_t &spInputAudioData) const
+{
+    //qDebug() << "Audiomanager: Emitting signal to send audio input to server.";
+    Q_EMIT sigSendAudioInputToServer(spInputAudioData);
 }
 
 #pragma endregion
 
 #pragma region SLOTS
 
-void AudioManager::slotSendAudioInputToServer(const spAudioData_t &spInputAudioData)
+void AudioManager::slotSendAudioInputToServer(const spAudioData_t &spInputAudioData) const
 {
     m->client.SendAudioData(spInputAudioData);
     //m->callbackInterval = m->intervalTimer.restart();
     //qInfo() << "Current interval time: " << m->callbackInterval;
 }
 
-void AudioManager::slotReceivedAudioData(const spAudioData_t& spReflectedAudioData)
+void AudioManager::slotReceivedAudioData(const spAudioData_t& spReflectedAudioData) const
 {
     /// the locker is unlocked whenever the function ends or returns
     //QMutexLocker locker(&m->mtxLocker);
