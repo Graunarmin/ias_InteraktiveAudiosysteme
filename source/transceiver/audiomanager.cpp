@@ -365,8 +365,8 @@ spAudioData_t AudioManager::DecodeWithOpus(const spAudioData_t &spReflectedAudio
         qWarning() << "Audiomanager: Opus encountered an error while decoding data.";
     }
 
-    // CHECK: Not sure if "samples" is the size needed here
-    auto spDecodedData = std::make_shared<QByteArray>(reinterpret_cast<const char *> (decodedAudioData), samples);
+    // CHECK: Not sure if "samples" is the size needed here, should samples be equal to framesPerBuffer
+    auto spDecodedData = std::make_shared<QByteArray>(reinterpret_cast<const char *> (decodedAudioData), m->framesPerBuffer*2);
 
     opus_custom_decoder_ctl(m->decoder, OPUS_RESET_STATE);
     return spDecodedData;
