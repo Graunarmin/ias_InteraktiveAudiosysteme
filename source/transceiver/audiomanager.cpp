@@ -76,6 +76,7 @@ bool AudioManager::Initialize(
     const QString& encodingEnabled,
     const QString& framesPerBuffer,
     const QString& sampleRate,
+    const QString& jitterBufferSize,
     const QString& audioChannels,
     const QString& inputDeviceIndex,
     const QString& outputDeviceIndex,
@@ -85,6 +86,8 @@ bool AudioManager::Initialize(
     qRegisterMetaType<spAudioData_t>("spAudioData_t");
 
     m->callbackData->pAudioManager = this;
+
+    ConfigureJitterBuffer(jitterBufferSize);
 
     if(!m->client.InitializeForAudio(ipIn, portIn)) return false;
 
@@ -158,7 +161,7 @@ bool AudioManager::GetReceivedAudioData(spAudioData_t &spReflectedAudioData) con
     bool success = false;
     //QMutexLocker locker(&m->mtxLocker);
 
-	if (waitingForJitterBuffer) {
+	if (m->waitingForJitterBuffer) {
 		if (m->queuedPointersToReturnedAudioDataBuffers.count() >= m->jitterBufferSize) {
 			m->waitingForJitterBuffer = false;
 			qDebug() << "Jitter buffer reached limit. Start audio output.";
@@ -224,34 +227,20 @@ void AudioManager::InitPortAudio()
 bool AudioManager::ConfigureAudioDevices(const QString& inDeviceIndex, const QString& outDeviceIndex)
 {
     LogAudioDeviceInformation(m->amountOfAudioDevices);
-    bool success = false;
-    QTextStream qin(stdin);
+
+    SetAudioChannels(inDeviceIndex, outDeviceIndex);
 
     qInfo() << "--> User input required: ";
     qInfo() << "The index for the input device is currently set to " << m->inputDeviceIndex<<
         " and the index for the output device is set to " << m->outputDeviceIndex << ".";
     qInfo() << "Do you wish to change these settings? [y/n]";
+
+    QTextStream qin(stdin);
     QString confirmation = qin.readLine();
-    if(confirmation != "y")
-    {
-        m->inputDeviceIndex = inDeviceIndex.toInt(&success);
-        if (!success)
-        {
-            qWarning() << "The index for the input device is not a valid number.";
-            return success;
-        }
 
-        m->outputDeviceIndex = outDeviceIndex.toInt(&success);
-        if (!success)
-        {
-            qWarning() << "The index for the output device is not a valid number.";
-            return success;
-        }
-        qInfo() << "\n";
-        qInfo() << "Proceeding with initialization ...";
-        return success;
-    }
+    if(confirmation != "y") return true;
 
+    bool success = false;
     while(!success)
     {
         qInfo() << "Please check the device list above and enter the index of the input device you wish to use: ";
@@ -269,6 +258,58 @@ bool AudioManager::ConfigureAudioDevices(const QString& inDeviceIndex, const QSt
     qInfo() << "\n";
     qInfo() << "Proceeding with initialization ...";
     return success;
+}
+
+bool AudioManager::SetAudioChannels(const QString& inDeviceIndex, const QString& outDeviceIndex)
+{
+    bool success = false;
+    m->inputDeviceIndex = inDeviceIndex.toInt(&success);
+    if (!success)
+    {
+        qWarning() << "The index for the input device is not a valid number.";
+        return success;
+    }
+
+    m->outputDeviceIndex = outDeviceIndex.toInt(&success);
+    if (!success)
+    {
+        qWarning() << "The index for the output device is not a valid number.";
+        return success;
+    }
+    qInfo() << "\n";
+    qInfo() << "Proceeding with initialization ...";
+    return success;
+}
+
+void AudioManager::ConfigureJitterBuffer(const QString& jitterBufferSize)
+{
+    SetJitterBuffer(jitterBufferSize);
+
+    qInfo() << "--> User input required: ";
+    qInfo() << "The jitter buffer size (number of buffered packages) is currently set to " << m->jitterBufferSize << ".";
+    qInfo() << "Do you wish to change these settings? [y/n]";
+
+    QTextStream qin(stdin);
+
+    QString confirmation = qin.readLine();
+    if(confirmation == "y")
+    {
+        qInfo() << "Please enter the new size for the jitterbuffer: ";
+        QString newBufferSize = qin.readLine();
+        SetJitterBuffer(newBufferSize);
+    }
+}
+
+void AudioManager::SetJitterBuffer(const QString& jitterBufferSize)
+{
+    bool success = false;
+    m->jitterBufferSize = jitterBufferSize.toInt(&success);
+    if (!success || m->jitterBufferSize < 1)
+    {
+        qWarning() << "WARNING: Size given for jitterbuffer was invalid. Setting size to 1.";
+        m->jitterBufferSize = 1;
+    }
+    qInfo() << "Programm will buffer" << m->jitterBufferSize << "packages before starting audio output.";
 }
 
 bool AudioManager::ConfigureAudioParameters(const QString& framesPerBuffer, const QString& sampleRate, const QString& audioChannels)

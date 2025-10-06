@@ -25,6 +25,7 @@ public:
         const QString& encodingEnabled,
         const QString& framesPerBuffer,
         const QString& sampleRate,
+        const QString& jitterBufferSize,
         const QString& audioChannels,
         const QString& inputDeviceIndex,
         const QString& outputDeviceIndex,
@@ -63,6 +64,8 @@ private:
      */
     bool ConfigureAudioDevices(const QString& inDeviceIndex, const QString& outDeviceIndex);
 
+    bool SetAudioChannels(const QString& inDeviceIndex, const QString& outDeviceIndex);
+
     /*! Initializes PortAudio - MUST be called before using PortAudio anywhere else.
      * \return true if successfully initialized, false otherwise.
      */
@@ -72,6 +75,9 @@ private:
     void ConfigurePortaudioParameters();
 
     void ConfigureOpusEncoding(const QString& encodingEnabled);
+
+    void ConfigureJitterBuffer(const QString& jitterBufferSize);
+    void SetJitterBuffer(const QString& jitterBufferSize);
 
     spAudioData_t EncodeWithOpus(const spAudioData_t &spInputAudioData)const;
 

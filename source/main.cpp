@@ -21,6 +21,17 @@
 // --- Start from Terminal: ---
 // build and then run with './ias -i 127.0.0.1 -p 5041'
 
+// flag | description | values
+// -i | IP |  ip-adresse
+// -p | port | port nummer
+// -e | encoding | true/false
+// -m | input device (microphone) index| int
+// -l | output device (lautsprecher) index | int
+// -j | jitter buffer size | int | default: 50
+// -f | frames per buffer (frame size) | int
+// -s | sample rate | int | default
+// -c | audio channels | int | default: 1
+
 int main(int argc, char *argv[])
 {
     // Creates an Event-Loop for de Application without an Interface
@@ -29,20 +40,23 @@ int main(int argc, char *argv[])
     // Create a CommandLineParser so we can enter IP and Port as command line arguments
     QCommandLineParser parser;
 
-    QCommandLineOption optOpusEncoding = {{"e", "encoded"}, "Opus-Encoding true/false", "encoded"};
-    optOpusEncoding.setDefaultValue("true");
-
     QCommandLineOption optIp = {{"i", "ip"}, "IP-Address", "ip"};
     optIp.setDefaultValue("127.0.0.1");
 
     QCommandLineOption optPort = {{"p", "port"}, "Port Number", "port"};
     optPort.setDefaultValue("5401");
 
+    QCommandLineOption optOpusEncoding = {{"e", "encoded"}, "Opus-Encoding true/false", "encoded"};
+    optOpusEncoding.setDefaultValue("true");
+
     QCommandLineOption optInDev = {{"m", "inDev"}, "Input device index (microphone)", "inDeviceIndex"};
     optInDev.setDefaultValue("0");
 
     QCommandLineOption optOutDev = {{"l", "outDev"}, "Output device index (speaker)", "outDeviceIndex"};
     optOutDev.setDefaultValue("1");
+
+    QCommandLineOption optJitterBufferSize = {{"j", "Jitter Buffer Size"}, "Size for the Jitter Buffer as Integer", "jitterBufferSize"};
+    optOpusEncoding.setDefaultValue("50");
 
     QCommandLineOption optFramesPerBuffer = {{"f", "fpb"}, "Frames per buffer", "framesPerBuffer"};
     optFramesPerBuffer.setDefaultValue("512");
@@ -56,14 +70,15 @@ int main(int argc, char *argv[])
 
     parser.setApplicationDescription("Start audio callback function that sends input to server.");
     parser.addHelpOption();
-    parser.addOptions({optOpusEncoding, optIp, optPort, optInDev, optOutDev, optFramesPerBuffer, optSampleRate, optAudioChannels});
+    parser.addOptions({optOpusEncoding, optIp, optPort, optJitterBufferSize, optInDev, optOutDev, optFramesPerBuffer, optSampleRate, optAudioChannels});
     parser.process(a);
 
-    const QString encodingEnabled = parser.value(optOpusEncoding);
     const QString ipIn = parser.value(optIp);
     const QString portIn = parser.value(optPort);
+    const QString encodingEnabled = parser.value(optOpusEncoding);
     const QString inputDeviceIndex = parser.value(optInDev);
     const QString outputDeviceIndex = parser.value(optOutDev);
+    const QString jitterBufferSize = parser.value(optJitterBufferSize);
     const QString framesPerBuffer = parser.value(optFramesPerBuffer);
     const QString sampleRate = parser.value(optSampleRate);
     const QString audioChannels = parser.value(optAudioChannels);
@@ -84,6 +99,7 @@ int main(int argc, char *argv[])
         encodingEnabled,
         framesPerBuffer,
         sampleRate,
+        jitterBufferSize,
         audioChannels,
         inputDeviceIndex,
         outputDeviceIndex,
