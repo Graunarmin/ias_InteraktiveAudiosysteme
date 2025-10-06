@@ -44,7 +44,8 @@ struct AudioManager::Impl
     QQueue<spAudioData_t> queuedPointersToReturnedAudioDataBuffers{};
     QElapsedTimer intervalTimer{};
     qint64 callbackInterval{0};
-
+	signed int jitterBufferSize {50};
+	bool waitingForJitterBuffer {true};
     /// ---- utility ----
     QMutex mtxLocker{};
 
@@ -157,23 +158,45 @@ bool AudioManager::GetReceivedAudioData(spAudioData_t &spReflectedAudioData) con
     bool success = false;
     //QMutexLocker locker(&m->mtxLocker);
 
-    if (!m->queuedPointersToReturnedAudioDataBuffers.empty())
-    {
-        if (m->opusEncoding)
-        {
-            spReflectedAudioData = DecodeWithOpus(m->queuedPointersToReturnedAudioDataBuffers.dequeue());
-        }
-        else
-        {
-            spReflectedAudioData = m->queuedPointersToReturnedAudioDataBuffers.dequeue();
-        }
+	if (waitingForJitterBuffer) {
+		if (m->queuedPointersToReturnedAudioDataBuffers.count() >= m->jitterBufferSize) {
+			m->waitingForJitterBuffer = false;
+			qDebug() << "Jitter buffer reached limit. Start audio output.";
+			if (m->opusEncoding)
+        	{
+            	spReflectedAudioData = DecodeWithOpus(m->queuedPointersToReturnedAudioDataBuffers.dequeue());
+        	}
+        	else
+        	{
+            	spReflectedAudioData = m->queuedPointersToReturnedAudioDataBuffers.dequeue();
+        	}
+        	success = true;
+		}
+		else
+		{
+			qDebug() << "Jitter buffer not reached limit. Waiting for audio data.";
+		}
+	} else {
+		if (m->queuedPointersToReturnedAudioDataBuffers.isEmpty()) {
+			m->waitingForJitterBuffer = true;
+			qDebug() << "Jitter buffer ran empty.";
+		}
+		else
+    	{
+        	if (m->opusEncoding)
+        	{
+            	spReflectedAudioData = DecodeWithOpus(m->queuedPointersToReturnedAudioDataBuffers.dequeue());
+        	}
+        	else
+        	{
+            	spReflectedAudioData = m->queuedPointersToReturnedAudioDataBuffers.dequeue();
+        	}
+        	success = true;
+    	}
+	}
 
-        success = true;
-    }
-    else
-    {
-        qDebug() << "Audiomanager: No data received, queue was empty.";
-    }
+
+
     return success;
 }
 
