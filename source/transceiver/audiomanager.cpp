@@ -12,6 +12,7 @@ struct AudioManager::Impl
     /// ---- Audio Configuration ----
     int amountOfAudioDevices {-1};
     /// Anzahl der Samples (Frames?), die gesammelt werden, bis die Callbackfunktion das nächste Mal aufgerufen wird
+    /// Portaudio nennt diesen Wert "framesPerBuffer", Opus nennt ihn "Samples"
     int framesPerBuffer {512};
     /// Wie oft während einer Sekunde Audio im Buffer gespeichert wird
     int sampleRate {48000}; ///48 kHz
@@ -30,6 +31,7 @@ struct AudioManager::Impl
     std::shared_ptr<CallbackData> callbackData {std::make_shared<CallbackData>()};
 
     /// ---- OPUS ----
+    const QList<QString> trueValues = {"true", "TRUE", "True", "t", "T", "1"};
     bool opusEncoding {true};
 	const int compressionFactor = 8;
     const int maxCompressedLength{framesPerBuffer*2/compressionFactor};
@@ -296,8 +298,7 @@ void AudioManager::ConfigurePortaudioParameters()
 
 void AudioManager::ConfigureOpusEncoding(const QString& encodingEnabled)
 {
-    const QList<QString> trueValues = {"true", "TRUE", "True", "t", "T", "1"};
-    if (!trueValues.contains(encodingEnabled))
+    if (!m->trueValues.contains(encodingEnabled))
     {
         m->opusEncoding = false;
         qInfo() << "Encoding disabled.";
@@ -336,7 +337,7 @@ spAudioData_t AudioManager::EncodeWithOpus(const spAudioData_t &spInputAudioData
 
     qDebug() << "Audiomanager: Encoding audio data with a maximum of " << m->maxCompressedLength << " bytes.";
 
-    int length = opus_custom_encode(m->encoder, inputForOpus, m->framesPerBuffer,
+    int length = opus_custom_encode(m->encoder, inputForOpus, m->framesPerBuffer * m->audioChannels,
                                     encodedAudioData, m->maxCompressedLength);
     if (length < 0)
     {
@@ -351,6 +352,7 @@ spAudioData_t AudioManager::EncodeWithOpus(const spAudioData_t &spInputAudioData
 
 spAudioData_t AudioManager::DecodeWithOpus(const spAudioData_t &spReflectedAudioData) const
 {
+    opus_custom_decoder_ctl(m->decoder, OPUS_SET_BITRATE(OPUS_BITRATE_MAX));
     const auto inputForOpus = reinterpret_cast<const unsigned char *> (spReflectedAudioData->data());
 
     // CHECK: not sure if length() is cast to int correctly
