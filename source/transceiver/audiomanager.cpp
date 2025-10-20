@@ -83,6 +83,7 @@ bool AudioManager::Initialize(
     const QString& ipIn,
     const QString& portIn)
 {
+    // register the type with qt so we can use it for signals & slots
     qRegisterMetaType<spAudioData_t>("spAudioData_t");
 
     m->callbackData->pAudioManager = this;

@@ -13,6 +13,7 @@
 #include "opus.h"
 #include "opus_custom.h"
 #include "opus_types.h"
+#include "jitterbuffer.h"
 
 class AudioManager : public QObject
 {
@@ -77,6 +78,7 @@ private:
     void ConfigureOpusEncoding(const QString& encodingEnabled);
 
     void ConfigureJitterBuffer(const QString& jitterBufferSize);
+
     void SetJitterBuffer(const QString& jitterBufferSize);
 
     spAudioData_t EncodeWithOpus(const spAudioData_t &spInputAudioData)const;
