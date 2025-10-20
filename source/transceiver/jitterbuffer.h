@@ -15,16 +15,19 @@ public:
     explicit JitterBuffer(QObject *parent = nullptr);
     ~JitterBuffer() override;
 
-    bool Initialize(const QString& bufferSize);
+    void Initialize(const QString& bufferSize);
     void QueryBufferSize();
 
-    void Add(spAudioData_t spAudioData);
+    void Add(const spBaAudioData_t& spAudioData);
+    void Add(const spListSpByteArray_t& dataList);
 
-    spAudioData_t Pop();
-    spAudioData_t Peek();
+    spBaAudioData_t Pop();
+    spBaAudioData_t Peek();
+    bool GetNextSample(spBaAudioData_t &spBufferedAudioSample);
 
     bool IsEmpty();
     bool IsFull();
+    int Size();
 
 private:
     struct Impl;

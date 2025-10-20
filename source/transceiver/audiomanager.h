@@ -36,7 +36,7 @@ public:
     /*! Tries to open and start the portaudio stream. */
     void StartAudioStream() const;
 
-    void ProcessAudioInput(const spAudioData_t &spInputAudioData) const;
+    void ProcessAudioInput(const spBaAudioData_t &spInputAudioData) const;
 
     /*! Checks if the queue of returned audio data has any contents and
      * if so, it dequeues the first entry into 'receivedData'.
@@ -44,7 +44,7 @@ public:
      * @param spReflectedAudioData A shared pointer to a QByteArray.
      * @return True if there was any data in the queue, false otherwise.
      */
-    bool GetReceivedAudioData(spAudioData_t &spReflectedAudioData) const;
+    bool GetReceivedAudioData(spBaAudioData_t &spReflectedAudioData) const;
 
 
 private:
@@ -77,13 +77,9 @@ private:
 
     void ConfigureOpusEncoding(const QString& encodingEnabled);
 
-    void ConfigureJitterBuffer(const QString& jitterBufferSize);
+    spBaAudioData_t EncodeWithOpus(const spBaAudioData_t &spInputAudioData)const;
 
-    void SetJitterBuffer(const QString& jitterBufferSize);
-
-    spAudioData_t EncodeWithOpus(const spAudioData_t &spInputAudioData)const;
-
-    spAudioData_t DecodeWithOpus(const spAudioData_t &spReflectedAudioData) const;
+    spBaAudioData_t DecodeWithOpus(const spBaAudioData_t &spReflectedAudioData) const;
 
     /*! Emits a signal to de-couple the next action from the callback function's context.
      * This makes the sending of data thread-safe.
@@ -91,7 +87,7 @@ private:
      * @param spInputAudioData A shared pointer to the QByteArray with the data
      * that is supposed to go to the server.
      */
-    void SendAudioInputToServer(const spAudioData_t &spInputAudioData) const;
+    void SendAudioInputToServer(const spBaAudioData_t &spInputAudioData) const;
 
 
 signals:
@@ -99,7 +95,7 @@ signals:
      * @param inputData A shared Pointer to the QByteArray with the data that is
      * supposed to be sent.
      */
-    void sigSendAudioInputToServer(spAudioData_t inputData) const;
+    void sigSendAudioInputToServer(spBaAudioData_t inputData) const;
 
 private slots:
     /*! Slot that calls the Client's 'SendAudioData()' function.
@@ -107,13 +103,14 @@ private slots:
      * @param spInputAudioData A shared pointer to the QByteArray with the data that is
      * supposed to be sent.
      */
-    void slotSendAudioInputToServer(const spAudioData_t &spInputAudioData) const;
+    void slotSendAudioInputToServer(const spBaAudioData_t &spInputAudioData) const;
 
     /*! Slot that enqueues the received pointer to a QByteArray.
      * @param spReflectedAudioData A shared pointer to the QByteArray that was returned from the server.
      * @remark Thread-safe
      */
-    void slotReceivedAudioData(const spAudioData_t& spReflectedAudioData) const;
+    void slotReceivedAudioData(const spBaAudioData_t& spReflectedAudioData) const;
+    void slotClientReceivedAudioData(const spListSpByteArray_t& data) const;
 };
 
 #endif // AUDIOMANAGER_H

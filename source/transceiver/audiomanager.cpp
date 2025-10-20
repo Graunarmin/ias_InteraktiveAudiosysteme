@@ -41,10 +41,11 @@ struct AudioManager::Impl
 
     /// ---- Send audio ----
     Client client{nullptr};
-    QQueue<spAudioData_t> queuedPointersToReturnedAudioDataBuffers{};
+    JitterBuffer jitterBuffer {nullptr};
+    //QQueue<spAudioData_t> queuedPointersToReturnedAudioDataBuffers{};
     QElapsedTimer intervalTimer{};
     qint64 callbackInterval{0};
-	signed int jitterBufferSize {50};
+    //signed int jitterBufferSize {50};
 	bool waitingForJitterBuffer {true};
     /// ---- utility ----
     QMutex mtxLocker{};
@@ -84,11 +85,9 @@ bool AudioManager::Initialize(
     const QString& portIn)
 {
     // register the type with qt so we can use it for signals & slots
-    qRegisterMetaType<spAudioData_t>("spAudioData_t");
+    qRegisterMetaType<spBaAudioData_t>("spAudioData_t");
 
     m->callbackData->pAudioManager = this;
-
-    ConfigureJitterBuffer(jitterBufferSize);
 
     if(!m->client.InitializeForAudio(ipIn, portIn)) return false;
 
@@ -101,7 +100,12 @@ bool AudioManager::Initialize(
     ConfigurePortaudioParameters();
     ConfigureOpusEncoding(encodingEnabled);
 
+    //ConfigureJitterBuffer(jitterBufferSize);
+    m->jitterBuffer.Initialize(jitterBufferSize);
+    m->jitterBuffer.QueryBufferSize();
+
     connect(&m->client, &Client::signalReceivedAudioData,this, &AudioManager::slotReceivedAudioData);
+    connect(&m->client, &Client::sigReceivedAudioData, this, &AudioManager::slotClientReceivedAudioData);
     connect(this, &AudioManager::sigSendAudioInputToServer, this, &AudioManager::slotSendAudioInputToServer);
 
     qDebug() << "Successfully initialized.";
@@ -147,9 +151,9 @@ void AudioManager::StartAudioStream() const {
     }
 }
 
-void AudioManager::ProcessAudioInput(const spAudioData_t &spInputAudioData) const
+void AudioManager::ProcessAudioInput(const spBaAudioData_t &spInputAudioData) const
 {
-    spAudioData_t dataReadyToSend {spInputAudioData};
+    spBaAudioData_t dataReadyToSend {spInputAudioData};
     if (m->opusEncoding)
     {
         dataReadyToSend = EncodeWithOpus(spInputAudioData);
@@ -157,49 +161,13 @@ void AudioManager::ProcessAudioInput(const spAudioData_t &spInputAudioData) cons
     SendAudioInputToServer(dataReadyToSend);
 }
 
-bool AudioManager::GetReceivedAudioData(spAudioData_t &spReflectedAudioData) const
+bool AudioManager::GetReceivedAudioData(spBaAudioData_t &spReflectedAudioData) const
 {
-    bool success = false;
-    //QMutexLocker locker(&m->mtxLocker);
-
-	if (m->waitingForJitterBuffer) {
-		if (m->queuedPointersToReturnedAudioDataBuffers.count() >= m->jitterBufferSize) {
-			m->waitingForJitterBuffer = false;
-			qDebug() << "Jitter buffer reached limit. Start audio output.";
-			if (m->opusEncoding)
-        	{
-            	spReflectedAudioData = DecodeWithOpus(m->queuedPointersToReturnedAudioDataBuffers.dequeue());
-        	}
-        	else
-        	{
-            	spReflectedAudioData = m->queuedPointersToReturnedAudioDataBuffers.dequeue();
-        	}
-        	success = true;
-		}
-		else
-		{
-			qDebug() << "Jitter buffer not reached limit. Waiting for audio data.";
-		}
-	} else {
-		if (m->queuedPointersToReturnedAudioDataBuffers.isEmpty()) {
-			m->waitingForJitterBuffer = true;
-			qDebug() << "Jitter buffer ran empty.";
-		}
-		else
-    	{
-        	if (m->opusEncoding)
-        	{
-            	spReflectedAudioData = DecodeWithOpus(m->queuedPointersToReturnedAudioDataBuffers.dequeue());
-        	}
-        	else
-        	{
-            	spReflectedAudioData = m->queuedPointersToReturnedAudioDataBuffers.dequeue();
-        	}
-        	success = true;
-    	}
-	}
-
-
+    const bool success = m->jitterBuffer.GetNextSample(spReflectedAudioData);
+    if (success && m->opusEncoding)
+    {
+        spReflectedAudioData = DecodeWithOpus(spReflectedAudioData);
+    }
 
     return success;
 }
@@ -280,37 +248,6 @@ bool AudioManager::SetAudioChannels(const QString& inDeviceIndex, const QString&
     qInfo() << "\n";
     qInfo() << "Proceeding with initialization ...";
     return success;
-}
-
-void AudioManager::ConfigureJitterBuffer(const QString& jitterBufferSize)
-{
-    SetJitterBuffer(jitterBufferSize);
-
-    qInfo() << "--> User input required: ";
-    qInfo() << "The jitter buffer size (number of buffered packages) is currently set to " << m->jitterBufferSize << ".";
-    qInfo() << "Do you wish to change these settings? [y/n]";
-
-    QTextStream qin(stdin);
-
-    QString confirmation = qin.readLine();
-    if(confirmation == "y")
-    {
-        qInfo() << "Please enter the new size for the jitterbuffer: ";
-        QString newBufferSize = qin.readLine();
-        SetJitterBuffer(newBufferSize);
-    }
-}
-
-void AudioManager::SetJitterBuffer(const QString& jitterBufferSize)
-{
-    bool success = false;
-    m->jitterBufferSize = jitterBufferSize.toInt(&success);
-    if (!success || m->jitterBufferSize < 1)
-    {
-        qWarning() << "WARNING: Size given for jitterbuffer was invalid. Setting size to 1.";
-        m->jitterBufferSize = 1;
-    }
-    qInfo() << "Programm will buffer" << m->jitterBufferSize << "packages before starting audio output.";
 }
 
 bool AudioManager::ConfigureAudioParameters(const QString& framesPerBuffer, const QString& sampleRate, const QString& audioChannels)
@@ -395,12 +332,12 @@ void AudioManager::ConfigureOpusEncoding(const QString& encodingEnabled)
     }
 }
 
-spAudioData_t AudioManager::EncodeWithOpus(const spAudioData_t &spInputAudioData) const
+spBaAudioData_t AudioManager::EncodeWithOpus(const spBaAudioData_t &spInputAudioData) const
 {
     const auto inputForOpus = reinterpret_cast<const opus_int16 *> (spInputAudioData->data());
     auto *encodedAudioData = new unsigned char[m->maxCompressedLength]();
 
-    qDebug() << "Audiomanager: Encoding audio data with a maximum of " << m->maxCompressedLength << " bytes.";
+    //qDebug() << "Audiomanager: Encoding audio data with a maximum of " << m->maxCompressedLength << " bytes.";
 
     int length = opus_custom_encode(m->encoder, inputForOpus, m->framesPerBuffer * m->audioChannels,
                                     encodedAudioData, m->maxCompressedLength);
@@ -415,7 +352,7 @@ spAudioData_t AudioManager::EncodeWithOpus(const spAudioData_t &spInputAudioData
     return spEncodedInputData;
 }
 
-spAudioData_t AudioManager::DecodeWithOpus(const spAudioData_t &spReflectedAudioData) const
+spBaAudioData_t AudioManager::DecodeWithOpus(const spBaAudioData_t &spReflectedAudioData) const
 {
     opus_custom_decoder_ctl(m->decoder, OPUS_SET_BITRATE(OPUS_BITRATE_MAX));
     const auto inputForOpus = reinterpret_cast<const unsigned char *> (spReflectedAudioData->data());
@@ -440,7 +377,7 @@ spAudioData_t AudioManager::DecodeWithOpus(const spAudioData_t &spReflectedAudio
     return spDecodedData;
 }
 
-void AudioManager::SendAudioInputToServer(const spAudioData_t &spInputAudioData) const
+void AudioManager::SendAudioInputToServer(const spBaAudioData_t &spInputAudioData) const
 {
     //qDebug() << "Audiomanager: Emitting signal to send audio input to server.";
     Q_EMIT sigSendAudioInputToServer(spInputAudioData);
@@ -450,18 +387,23 @@ void AudioManager::SendAudioInputToServer(const spAudioData_t &spInputAudioData)
 
 #pragma region SLOTS
 
-void AudioManager::slotSendAudioInputToServer(const spAudioData_t &spInputAudioData) const
+void AudioManager::slotSendAudioInputToServer(const spBaAudioData_t &spInputAudioData) const
 {
     m->client.SendAudioData(spInputAudioData);
     //m->callbackInterval = m->intervalTimer.restart();
     //qInfo() << "Current interval time: " << m->callbackInterval;
 }
 
-void AudioManager::slotReceivedAudioData(const spAudioData_t& spReflectedAudioData) const
+void AudioManager::slotReceivedAudioData(const spBaAudioData_t& spReflectedAudioData) const
 {
     /// the locker is unlocked whenever the function ends or returns
     //QMutexLocker locker(&m->mtxLocker);
-    m->queuedPointersToReturnedAudioDataBuffers.enqueue(spReflectedAudioData);
+    m->jitterBuffer.Add(spReflectedAudioData);
+}
+
+void AudioManager::slotClientReceivedAudioData(const spListSpByteArray_t& data) const
+{
+    m-> jitterBuffer.Add(data);
 }
 
 #pragma endregion

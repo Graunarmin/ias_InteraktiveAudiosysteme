@@ -1,7 +1,7 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
-#include <QObject>
+#include "QObject"
 #include <QDebug>
 #include <QUdpSocket>
 #include <QNetworkDatagram>
@@ -60,14 +60,15 @@ public:
      * @param spAudioData A shared pointer to the QByteArray full of
      * audio samples.
      */
-    void SendAudioData(const spAudioData_t& spAudioData) const;
+    void SendAudioData(const spBaAudioData_t& spAudioData) const;
 
 signals:
     /*! A signal that is emitted whenever the udp socket has received
      * data back from the server.
      * @param audioData A shared pointer to the QByteArray the server sent back.
      */
-    void signalReceivedAudioData(spAudioData_t audioData);
+    void signalReceivedAudioData(spBaAudioData_t audioData);
+    void sigReceivedAudioData(spListSpByteArray_t data);
 
 private:
     /// struct for all member variables

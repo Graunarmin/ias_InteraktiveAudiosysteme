@@ -10,7 +10,8 @@
 
 
 /// ---- typedef ----
-using spAudioData_t = std::shared_ptr<QByteArray>;
+using spBaAudioData_t = std::shared_ptr<QByteArray>;
+using spListSpByteArray_t = std::shared_ptr<QList<spBaAudioData_t>>;
 
 /// ---- utility functions ----
 void ConfigurePaStreamParameters(const std::shared_ptr<PaStreamParameters> &parameters,
