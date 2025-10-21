@@ -2,7 +2,7 @@
 
 struct JitterBuffer::Impl
 {
-    QQueue<spBaAudioData_t> queuedPointersToData{};
+    QQueue<spByteArray_t> queuedPointersToData{};
     signed int bufferSize{50};
     bool buffering{true};
     Impl() = default;
@@ -25,21 +25,22 @@ void JitterBuffer::Initialize(const QString& bufferSize)
 
 void JitterBuffer::QueryBufferSize()
 {
-    qInfo() << "--> User input requiered: ";
-    qInfo() << "The jitter buffer size (number of buffered packages) is currently set to " << m->bufferSize << ".";
-    qInfo() << "Do you wish to change these settings? [y/n]";
+    qInfo() << "+++ User input required +++";
+    qInfo() << "  The jitter buffer size (number of buffered packages) is currently set to " << m->bufferSize << ".";
+    qInfo() << "> Do you wish to change these settings? [y/n]";
     QTextStream qin(stdin);
 
     QString confirmation = qin.readLine();
     if(confirmation == "y")
     {
-        qInfo() << "Please enter the new size for the jitterbuffer: ";
+        qInfo() << "> Please enter the new size for the jitterbuffer: ";
         const QString newBufferSize = qin.readLine();
         SetBufferSize(newBufferSize);
     }
+    qInfo() << "--> Programm will buffer" << m->bufferSize << "packages before starting audio output.";
 }
 
-void JitterBuffer::Add(const spBaAudioData_t& spAudioData)
+void JitterBuffer::Add(const spByteArray_t& spAudioData)
 {
     //qDebug() << "Jitterbuffer: Adding" << spAudioData->size() << "bytes to Queue";
     m->queuedPointersToData.enqueue(spAudioData);
@@ -53,7 +54,7 @@ void JitterBuffer::Add(const spListSpByteArray_t& dataList)
     }
 }
 
-bool JitterBuffer::GetNextSample(spBaAudioData_t &spBufferedAudioSample)
+bool JitterBuffer::GetNextSample(spByteArray_t &spBufferedAudioSample)
 {
     bool success = false;
     if(m->buffering)
@@ -93,10 +94,9 @@ bool JitterBuffer::SetBufferSize(const QString &newSize)
     m->bufferSize = newSize.toInt(&success);
     if (!success || m->bufferSize < 1)
     {
-        qWarning() << "WARNING: Size given for jitterbuffer was invalid. Setting size to 1.";
+        qWarning() << " --- WARNING --- Size given for jitterbuffer was invalid. Setting size to 1.";
         m->bufferSize = 1;
         success = true;
     }
-    qInfo() << "Programm will buffer" << m->bufferSize << "packages before starting audio output.";
     return success;
 }

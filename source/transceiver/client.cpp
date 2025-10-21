@@ -101,7 +101,7 @@ void Client::slotReceivedReflectedTimerData() const
     }
 }
 
-void Client::SendAudioData(const spBaAudioData_t& spAudioData) const
+void Client::SendAudioData(const spByteArray_t& spAudioData) const
 {
     const qint64 sentBytes = m->upUdpSocket -> writeDatagram(*spAudioData, m->ip, m->port);
     if(const int checkNumber = static_cast<int>(sentBytes); checkNumber < 0)
@@ -116,7 +116,7 @@ void Client::SendAudioData(const spBaAudioData_t& spAudioData) const
 
 void Client::slotReceivedReflectedAudioData()
 {
-    const auto spListByteArrays = std::make_shared<QList<spBaAudioData_t>>();
+    const auto spListByteArrays = std::make_shared<QList<spByteArray_t>>();
 
     while (m->upUdpSocket->hasPendingDatagrams())
     {
@@ -129,6 +129,52 @@ void Client::slotReceivedReflectedAudioData()
     }
     qInfo() << "Client: Received" << spListByteArrays->length() << "Datagrams total";
     Q_EMIT sigReceivedAudioData(spListByteArrays);
+}
+
+void Client::ReadInPort(QString& ipIn, QString& portIn)
+{
+    QTextStream qin(stdin);
+    qInfo() << "Please enter the Port Number: ";
+    portIn = qin.readLine();
+
+    qInfo() << "And now the IP-Address: ";
+    ipIn = qin.readLine();
+}
+
+bool Client::VerifyIpAndPort(const QString& ipIn, const QString &portIn, QHostAddress& ipOut, quint16& portOut)
+{
+    bool success = true;
+    bool inputWasNumber = false;
+    const int port = portIn.toInt(&inputWasNumber);
+
+    if(inputWasNumber){
+        if(port > 0 && port <= 0xffff)
+        {
+            portOut = static_cast<quint16>(port);
+        }
+        else
+        {
+            qWarning() << "Invalid port:" << portIn;
+            success = false;
+        }
+    }
+    else
+    {
+        qWarning() << "Invalid port:" << portIn;
+        success = false;
+    }
+
+    if(const auto ip = QHostAddress(ipIn); ip.isNull())
+    {
+        qWarning() << "Invalid IP-Address:" << ipIn;
+        success = false;
+    }
+    else
+    {
+        ipOut = ip;
+    }
+
+    return success;
 }
 
 

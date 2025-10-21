@@ -18,10 +18,10 @@ public:
     void Initialize(const QString& bufferSize);
     void QueryBufferSize();
 
-    void Add(const spBaAudioData_t& spAudioData);
+    void Add(const spByteArray_t& spAudioData);
     void Add(const spListSpByteArray_t& dataList);
 
-    bool GetNextSample(spBaAudioData_t &spBufferedAudioSample);
+    bool GetNextSample(spByteArray_t &spBufferedAudioSample);
 
 private:
     struct Impl;
