@@ -39,12 +39,12 @@ public:
     void ProcessAudioInput(const spBaAudioData_t &spInputAudioData) const;
 
     /*! Checks if the queue of returned audio data has any contents and
-     * if so, it dequeues the first entry into 'receivedData'.
+     * if so, it dequeues the first entry into 'spReceivedData'.
      * @remark Thread-safe
-     * @param spReflectedAudioData A shared pointer to a QByteArray.
+     * @param spReceivedData A shared pointer to a QByteArray.
      * @return True if there was any data in the queue, false otherwise.
      */
-    bool GetReceivedAudioData(spBaAudioData_t &spReflectedAudioData) const;
+    bool GetReceivedAudioData(spBaAudioData_t &spReceivedData) const;
 
 
 private:
@@ -63,13 +63,11 @@ private:
     /*! Logs all available audio devices and asks the user for
      * the input and output device's indices.
      */
-    bool ConfigureAudioDevices(const QString& inDeviceIndex, const QString& outDeviceIndex);
+    void ConfigureAudioDevices(const QString &inDeviceIndex, const QString &outDeviceIndex);
 
     bool SetAudioChannels(const QString& inDeviceIndex, const QString& outDeviceIndex);
 
-    /*! Initializes PortAudio - MUST be called before using PortAudio anywhere else.
-     * \return true if successfully initialized, false otherwise.
-     */
+    /*! Initializes PortAudio - MUST be called before using PortAudio anywhere else. */
     void InitPortAudio();
 
     /*! Configures the in- and output streaming parameters for portaudio. */
@@ -105,11 +103,10 @@ private slots:
      */
     void slotSendAudioInputToServer(const spBaAudioData_t &spInputAudioData) const;
 
-    /*! Slot that enqueues the received pointer to a QByteArray.
-     * @param spReflectedAudioData A shared pointer to the QByteArray that was returned from the server.
+    /*! Slot that enqueues the received pointers in the list into a QByteArray.
+     * @param data A shared pointer to List of shared pointers to the QByteArrays that were returned from the server at a time.
      * @remark Thread-safe
      */
-    void slotReceivedAudioData(const spBaAudioData_t& spReflectedAudioData) const;
     void slotClientReceivedAudioData(const spListSpByteArray_t& data) const;
 };
 

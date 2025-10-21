@@ -128,7 +128,6 @@ void Client::slotReceivedReflectedAudioData()
         qInfo() << "Client: Received Datagram of" << datagram.data().size() << "Bytes from Server.";
     }
     qInfo() << "Client: Received" << spListByteArrays->length() << "Datagrams total";
-    //Q_EMIT signalReceivedAudioData(spByteArray);
     Q_EMIT sigReceivedAudioData(spListByteArrays);
 }
 

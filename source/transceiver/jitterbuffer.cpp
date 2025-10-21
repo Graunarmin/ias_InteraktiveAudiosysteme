@@ -20,7 +20,7 @@ JitterBuffer::~JitterBuffer()
 
 void JitterBuffer::Initialize(const QString& bufferSize)
 {
-    SetBuffer(bufferSize);
+    SetBufferSize(bufferSize);
 }
 
 void JitterBuffer::QueryBufferSize()
@@ -35,13 +35,13 @@ void JitterBuffer::QueryBufferSize()
     {
         qInfo() << "Please enter the new size for the jitterbuffer: ";
         const QString newBufferSize = qin.readLine();
-        SetBuffer(newBufferSize);
+        SetBufferSize(newBufferSize);
     }
 }
 
 void JitterBuffer::Add(const spBaAudioData_t& spAudioData)
 {
-    qDebug() << "Jitterbuffer: Adding" << spAudioData->size() << "bytes to Queue";
+    //qDebug() << "Jitterbuffer: Adding" << spAudioData->size() << "bytes to Queue";
     m->queuedPointersToData.enqueue(spAudioData);
 }
 
@@ -53,39 +53,29 @@ void JitterBuffer::Add(const spListSpByteArray_t& dataList)
     }
 }
 
-spBaAudioData_t JitterBuffer::Peek()
-{
-    return m->queuedPointersToData.head();
-}
-
-spBaAudioData_t JitterBuffer::Pop()
-{
-    return m->queuedPointersToData.dequeue();
-}
-
 bool JitterBuffer::GetNextSample(spBaAudioData_t &spBufferedAudioSample)
 {
     bool success = false;
     if(m->buffering)
     {
-        if(IsFull())
+        if(m->queuedPointersToData.size() >= m->bufferSize)
         {
-            qDebug() << "Jitter buffer full. Starting audio output ...";
+            qDebug() << "Jitterbuffer full. Starting audio output ...";
             m->buffering = false;
             spBufferedAudioSample = m->queuedPointersToData.dequeue();
             success = true;
         }
         else
         {
-            qDebug() << "Jitter buffer still waiting for more audio data. Current Buffer: "
+            qDebug() << "Jitterbuffer still waiting for more audio data. Current Buffer: "
                      << m->queuedPointersToData.size();
         }
     }
     else
     {
-        if(IsEmpty())
+        if(m->queuedPointersToData.isEmpty())
         {
-            qDebug() << "Jitter buffer ran empty. Buffering ...";
+            qDebug() << "Jitterbuffer ran empty. Buffering ...";
             m->buffering = true;
         }
         else
@@ -97,21 +87,7 @@ bool JitterBuffer::GetNextSample(spBaAudioData_t &spBufferedAudioSample)
     return success;
 }
 
-bool JitterBuffer::IsEmpty()
-{
-    return m->queuedPointersToData.isEmpty();
-}
-
-bool JitterBuffer::IsFull()
-{
-    return m->queuedPointersToData.size() >= m->bufferSize;
-}
-
-int JitterBuffer::Size(){
-    return (int) m->queuedPointersToData.size();
-}
-
-bool JitterBuffer::SetBuffer(const QString &newSize)
+bool JitterBuffer::SetBufferSize(const QString &newSize)
 {
     bool success{false};
     m->bufferSize = newSize.toInt(&success);
