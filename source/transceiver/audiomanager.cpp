@@ -7,22 +7,21 @@ struct AudioManager::Impl
     mutable bool audiofault {false};
     mutable bool soundIsRunning {false};
     mutable PaError portAudioError{};
-    mutable int opusError {};
 
     /// ---- Audio Configuration ----
     int amountOfAudioDevices {-1};
-    /// Anzahl der Samples (Frames?), die gesammelt werden, bis die Callbackfunktion das nächste Mal aufgerufen wird
+    /// Anzahl der Samples (== Frames für portaudio), die gesammelt werden, bis die Callbackfunktion erneut aufgerufen wird.
     /// Portaudio nennt diesen Wert "framesPerBuffer", Opus nennt ihn "Samples"
     int framesPerBuffer {512};
     /// Wie oft während einer Sekunde Audio im Buffer gespeichert wird
     int sampleRate {48000}; ///48 kHz
-    float suggestedLatency {0.001f};
     int audioChannels {1};
+    float suggestedLatency {0.001f};
     /// buffer size is framesPerBuffer * audioChannels * 2
     unsigned short bufferSize {};
     PaSampleFormat sampleFormat {paInt16};
-    int inputDeviceIndex {0};
-    int outputDeviceIndex {1};
+
+    DeviceManager devices{};
 
     /// ---- Stream/Callback Configuration ----
     PaStream *stream{};
@@ -30,22 +29,17 @@ struct AudioManager::Impl
     std::shared_ptr<PaStreamParameters> outputParameters {std::make_shared<PaStreamParameters>()};
     std::shared_ptr<CallbackData> callbackData {std::make_shared<CallbackData>()};
 
-    /// ---- OPUS ----
-    const QList<QString> trueValues = {"true", "TRUE", "True", "t", "T", "1"};
+    /// ---- Compression ----
     bool opusEncoding {true};
-	const int compressionFactor = 8;
-    const int maxCompressedLength{framesPerBuffer*2/compressionFactor};
-    OpusCustomMode *opusMode {};
-    OpusCustomEncoder *encoder {};
-    OpusCustomDecoder *decoder {};
+    const QList<QString> trueValues = {"true", "TRUE", "True", "t", "T", "1"};
+    Codec codec{nullptr};
 
-    /// ---- Send audio ----
+    /// ---- send/receive audio ----
     Client client{nullptr};
-    QQueue<spAudioData_t> queuedPointersToReturnedAudioDataBuffers{};
+    JitterBuffer jitterBuffer {nullptr};
     QElapsedTimer intervalTimer{};
     qint64 callbackInterval{0};
-	signed int jitterBufferSize {50};
-	bool waitingForJitterBuffer {true};
+
     /// ---- utility ----
     QMutex mtxLocker{};
 
@@ -67,46 +61,55 @@ AudioManager::~AudioManager()
             m->soundIsRunning = false;
         }
     }
-    opus_custom_encoder_destroy(m->encoder);
-    opus_custom_decoder_destroy(m->decoder);
-    opus_custom_mode_destroy(m->opusMode);
 }
 
 bool AudioManager::Initialize(
-    const QString& encodingEnabled,
+    const QString& ipIn,
+    const QString& portIn,
+    const QString& inputDeviceIndex,
+    const QString& outputDeviceIndex,
     const QString& framesPerBuffer,
     const QString& sampleRate,
     const QString& audioChannels,
-    const QString& inputDeviceIndex,
-    const QString& outputDeviceIndex,
-    const QString& ipIn,
-    const QString& portIn)
+    const QString& jitterBufferSize,
+    const QString& encodingEnabled,
+    const QString& compressionFactor)
 {
-    qRegisterMetaType<spAudioData_t>("spAudioData_t");
+    // Register the types with Qt so we can use them for signals & slots
+    qRegisterMetaType<spByteArray_t>("spByteArray_t");
+    qRegisterMetaType<spListSpByteArray_t>("spListSpByteArray_t");
 
     m->callbackData->pAudioManager = this;
 
-    if(!m->client.InitializeForAudio(ipIn, portIn)) return false;
+    if (!InitPortAudio()) return false;
 
-    InitPortAudio();
-    if(m->portAudioError != paNoError) return false;
+    ConfigureClient(ipIn, portIn);
 
-    if (!ConfigureAudioDevices(inputDeviceIndex, outputDeviceIndex)) return false;
-    if (!ConfigureAudioParameters(framesPerBuffer, sampleRate, audioChannels)) return false;
+    ConfigureDevices(inputDeviceIndex, outputDeviceIndex);
+
+    ConfigureAudioParameters(framesPerBuffer, sampleRate, audioChannels);
 
     ConfigurePortaudioParameters();
-    ConfigureOpusEncoding(encodingEnabled);
 
-    connect(&m->client, &Client::signalReceivedAudioData,this, &AudioManager::slotReceivedAudioData);
+    ConfigureJitterBuffer(jitterBufferSize);
+
+    ConfigureCodec(encodingEnabled, compressionFactor);
+
+    connect(&m->client, &Client::sigReceivedAudioData, this, &AudioManager::slotClientReceivedAudioData);
     connect(this, &AudioManager::sigSendAudioInputToServer, this, &AudioManager::slotSendAudioInputToServer);
 
-    qDebug() << "Successfully initialized.";
+    qDebug() << "... Successfully initialized.";
+    qInfo() << "\n";
+    qInfo() << "+++ User input required +++";
+    qInfo() << "> Start audio stream? [Press any key to continue]";
+    QTextStream qin(stdin);
+    QString confirmation = qin.readLine();
+
     return true;
 }
 
-void AudioManager::StartAudioStream() const {
-    qDebug() << "Running ...";
-
+void AudioManager::StartAudioStream() const
+{
     m->portAudioError = Pa_OpenStream(&(m->stream),
                                     m->inputParameters.get(),
                                     m->outputParameters.get(),
@@ -119,7 +122,7 @@ void AudioManager::StartAudioStream() const {
     if(m->portAudioError == paNoError)
     {
         m->audiofault = false;
-        qDebug() << "Starting Stream ...";
+        qInfo() << "Starting audio stream ...";
         /// Start timer that measures the time intervals between callback function calls
         //if(!(m->intervalTimer.isValid())) m->intervalTimer.start();
         m->portAudioError = Pa_StartStream(m->stream);
@@ -143,67 +146,30 @@ void AudioManager::StartAudioStream() const {
     }
 }
 
-void AudioManager::ProcessAudioInput(const spAudioData_t &spInputAudioData) const
+void AudioManager::ProcessAudioInput(const spByteArray_t &spInputAudioData) const
 {
-    spAudioData_t dataReadyToSend {spInputAudioData};
+    spByteArray_t dataReadyToSend {spInputAudioData};
     if (m->opusEncoding)
     {
-        dataReadyToSend = EncodeWithOpus(spInputAudioData);
+        dataReadyToSend = m->codec.Encode(spInputAudioData);
     }
     SendAudioInputToServer(dataReadyToSend);
 }
 
-bool AudioManager::GetReceivedAudioData(spAudioData_t &spReflectedAudioData) const
+bool AudioManager::GetReceivedAudioData(spByteArray_t &spReceivedData) const
 {
-    bool success = false;
-    //QMutexLocker locker(&m->mtxLocker);
-
-	if (m->waitingForJitterBuffer) {
-		if (m->queuedPointersToReturnedAudioDataBuffers.count() >= m->jitterBufferSize) {
-			m->waitingForJitterBuffer = false;
-			qDebug() << "Jitter buffer reached limit. Start audio output.";
-			if (m->opusEncoding)
-        	{
-            	spReflectedAudioData = DecodeWithOpus(m->queuedPointersToReturnedAudioDataBuffers.dequeue());
-        	}
-        	else
-        	{
-            	spReflectedAudioData = m->queuedPointersToReturnedAudioDataBuffers.dequeue();
-        	}
-        	success = true;
-		}
-		else
-		{
-			qDebug() << "Jitter buffer not reached limit. Waiting for audio data.";
-		}
-	} else {
-		if (m->queuedPointersToReturnedAudioDataBuffers.isEmpty()) {
-			m->waitingForJitterBuffer = true;
-			qDebug() << "Jitter buffer ran empty.";
-		}
-		else
-    	{
-        	if (m->opusEncoding)
-        	{
-            	spReflectedAudioData = DecodeWithOpus(m->queuedPointersToReturnedAudioDataBuffers.dequeue());
-        	}
-        	else
-        	{
-            	spReflectedAudioData = m->queuedPointersToReturnedAudioDataBuffers.dequeue();
-        	}
-        	success = true;
-    	}
-	}
-
-
-
+    const bool success = m->jitterBuffer.GetNextSample(spReceivedData);
+    if (success && m->opusEncoding)
+    {
+        spReceivedData = m->codec.Decode(spReceivedData);
+    }
     return success;
 }
 
 
 #pragma region PRIVATE MEMBER FUNCTIONS
 
-void AudioManager::InitPortAudio()
+bool AudioManager::InitPortAudio()
 {
     m->portAudioError = Pa_Initialize();
 
@@ -218,82 +184,60 @@ void AudioManager::InitPortAudio()
     if(m->amountOfAudioDevices < 0)
     {
         qWarning() << "ERROR: Number of Devices came back negative with " << m->amountOfAudioDevices;
+        return false;
     }
+    return m->portAudioError == paNoError;
 }
 
-bool AudioManager::ConfigureAudioDevices(const QString& inDeviceIndex, const QString& outDeviceIndex)
+void AudioManager::ConfigureClient(const QString &ipIn, const QString &portIn)
 {
-    LogAudioDeviceInformation(m->amountOfAudioDevices);
-    bool success = false;
-    QTextStream qin(stdin);
-
-    qInfo() << "--> User input required: ";
-    qInfo() << "The index for the input device is currently set to " << m->inputDeviceIndex<<
-        " and the index for the output device is set to " << m->outputDeviceIndex << ".";
-    qInfo() << "Do you wish to change these settings? [y/n]";
-    QString confirmation = qin.readLine();
-    if(confirmation != "y")
+    if(!m->client.InitializeForAudio(ipIn, portIn))
     {
-        m->inputDeviceIndex = inDeviceIndex.toInt(&success);
-        if (!success)
-        {
-            qWarning() << "The index for the input device is not a valid number.";
-            return success;
-        }
-
-        m->outputDeviceIndex = outDeviceIndex.toInt(&success);
-        if (!success)
-        {
-            qWarning() << "The index for the output device is not a valid number.";
-            return success;
-        }
-        qInfo() << "\n";
-        qInfo() << "Proceeding with initialization ...";
-        return success;
+        //ToDo: Implement this
+        qWarning() << "Audiomanager: ERROR. Could not initialize Client. Proceeding without sending data to server.";
     }
-
-    while(!success)
-    {
-        qInfo() << "Please check the device list above and enter the index of the input device you wish to use: ";
-        QString inputIndex = qin.readLine();
-        success = VerifyDeviceIndex(inputIndex, m->amountOfAudioDevices, m->inputDeviceIndex);
-    }
-    success = false;
-    while(!success)
-    {
-        qInfo() << "And the index or the output device: ";
-        QString outputIndex = qin.readLine();
-        success = VerifyDeviceIndex(outputIndex, m->amountOfAudioDevices, m->outputDeviceIndex);
-    }
-    qDebug() << "New index for input device: " << m->inputDeviceIndex << ", new index for output device: " << m->outputDeviceIndex;
-    qInfo() << "\n";
-    qInfo() << "Proceeding with initialization ...";
-    return success;
 }
 
-bool AudioManager::ConfigureAudioParameters(const QString& framesPerBuffer, const QString& sampleRate, const QString& audioChannels)
+void AudioManager::ConfigureDevices(const QString &inputDeviceIndex, const QString &outputDeviceIndex)
+{
+    m->devices.Initialize(m->amountOfAudioDevices, inputDeviceIndex, outputDeviceIndex);
+}
+
+
+void AudioManager::ConfigureAudioParameters(const QString &framesPerBuffer, const QString &sampleRate,
+                                            const QString &audioChannels)
 {
     bool success {false};
-    m->framesPerBuffer = framesPerBuffer.toInt(&success);
+    int tmp_number = framesPerBuffer.toInt(&success);
     if (!success)
     {
-        qWarning() << "The parameter you gave for > frames per buffer < is not a valid number.";
-        return success;
+        qWarning() << "The parameter you gave for > frames per buffer < is not a valid number. Falling back to default:" << m->framesPerBuffer;
     }
-    m->sampleRate = sampleRate.toInt(&success);
+    else
+    {
+        m->framesPerBuffer = tmp_number;
+    }
+    tmp_number = sampleRate.toInt(&success);
     if (!success)
     {
-        qWarning() << "The parameter you gave for > sample rate < is not a valid number.";
-        return success;
+        qWarning() << "The parameter you gave for > sample rate < is not a valid number. Falling back to default:" << m->sampleRate;
     }
-    m->audioChannels = audioChannels.toInt(&success);
+    else
+    {
+        m->sampleRate = tmp_number;
+    }
+    tmp_number = audioChannels.toInt(&success);
     if (!success)
     {
-        qWarning() << "The parameter you gave for > audio channels < is not a valid number.";
-        return success;
+        qWarning() << "The parameter you gave for > audio channels < is not a valid number. Falling back to default:" << m->audioChannels;
     }
+    else
+    {
+        m->audioChannels = tmp_number;
+    }
+
+    // Set buffer size (NOT the jitterbuffer)
     m->bufferSize = m->framesPerBuffer * m->audioChannels * 2;
-    return success;
 }
 
 void AudioManager::ConfigurePortaudioParameters()
@@ -302,103 +246,53 @@ void AudioManager::ConfigurePortaudioParameters()
     static PaMacCoreStreamInfo coreAudioInputInfo;
     ConfigurePaStreamParameters(
         m->inputParameters,
-        m->audioChannels,
-        m->inputDeviceIndex,
-        paInt16,
-        coreAudioInputInfo,
-        m->suggestedLatency);
+        m->devices.InputIndex(),
+        coreAudioInputInfo);
 
     /// Configure output parameters
     static PaMacCoreStreamInfo coreAudioOutputInfo;
     ConfigurePaStreamParameters(
         m->outputParameters,
-        m->audioChannels,
-        m->outputDeviceIndex,
-        paInt16,
-        coreAudioOutputInfo,
-        m->suggestedLatency);
+        m->devices.OutputIndex(),
+        coreAudioOutputInfo);
 }
 
-void AudioManager::ConfigureOpusEncoding(const QString& encodingEnabled)
+void AudioManager::ConfigurePaStreamParameters(const std::shared_ptr<PaStreamParameters> &parameters,
+                                 const PaDeviceIndex &deviceIndex,
+                                 PaMacCoreStreamInfo& coreAudioInfo)
+{
+    parameters->channelCount = m->audioChannels;
+    parameters->device = deviceIndex;
+    parameters->sampleFormat = paInt16;
+    parameters->hostApiSpecificStreamInfo = nullptr;
+    parameters->suggestedLatency = m->suggestedLatency;
+
+    PaMacCore_SetupStreamInfo(&coreAudioInfo, paMacCorePro);
+    parameters->hostApiSpecificStreamInfo = &coreAudioInfo;
+}
+
+void AudioManager::ConfigureCodec(const QString& encodingEnabled, const QString& compressionFactor)
 {
     if (!m->trueValues.contains(encodingEnabled))
     {
         m->opusEncoding = false;
-        qInfo() << "Encoding disabled.";
+        qInfo() << "... Encoding disabled.";
         return;
     }
     m->opusEncoding = true;
-    qInfo() << "Encoding enabled.";
+    qInfo() << "... Encoding enabled.";
 
-    m->opusMode = opus_custom_mode_create(m->sampleRate, m->framesPerBuffer, &m->opusError);
-    if (m->opusError != OPUS_OK) {
-        qWarning() << "Audiomanager: Cannot create Opus Mode - Error: " << opus_strerror(m->opusError);
-        qWarning() << "Disabling Encoding.";
-        m->opusEncoding = false;
-    }
-
-    m->encoder = opus_custom_encoder_create(m->opusMode, m->audioChannels, &m->opusError);
-    if (m->opusError != OPUS_OK) {
-        qWarning() << "Audiomanager: Cannot create Opus Encoder - Error: " << opus_strerror(m->opusError);
-        qWarning() << "Disabling Encoding.";
-        m->opusEncoding = false;
-    }
-
-    m->decoder = opus_custom_decoder_create(m->opusMode, m->audioChannels, &m->opusError);
-    if(m->opusError != OPUS_OK)
-    {
-        qWarning() << "Audiomanager: OpusCustomDecoder creation failed: " << opus_strerror(m->opusError);
-        qWarning() << "Disabling Encoding.";
-        m->opusEncoding = false;
-    }
+    m->codec.Initialize(compressionFactor, m->sampleRate, m->framesPerBuffer, m->audioChannels);
 }
 
-spAudioData_t AudioManager::EncodeWithOpus(const spAudioData_t &spInputAudioData) const
+void AudioManager::ConfigureJitterBuffer(const QString &bufferSize)
 {
-    const auto inputForOpus = reinterpret_cast<const opus_int16 *> (spInputAudioData->data());
-    auto *encodedAudioData = new unsigned char[m->maxCompressedLength]();
-
-    qDebug() << "Audiomanager: Encoding audio data with a maximum of " << m->maxCompressedLength << " bytes.";
-
-    int length = opus_custom_encode(m->encoder, inputForOpus, m->framesPerBuffer * m->audioChannels,
-                                    encodedAudioData, m->maxCompressedLength);
-    if (length < 0)
-    {
-        qWarning() << "Audiomanager: Opus encountered an error while encoding input data.";
-    }
-
-    auto spEncodedInputData = std::make_shared<QByteArray>(reinterpret_cast<const char *> (encodedAudioData), length);
-
-    opus_custom_encoder_ctl(m->encoder, OPUS_RESET_STATE);
-    return spEncodedInputData;
+    m->jitterBuffer.Initialize(bufferSize);
+    m->jitterBuffer.QueryBufferSize();
 }
 
-spAudioData_t AudioManager::DecodeWithOpus(const spAudioData_t &spReflectedAudioData) const
-{
-    opus_custom_decoder_ctl(m->decoder, OPUS_SET_BITRATE(OPUS_BITRATE_MAX));
-    const auto inputForOpus = reinterpret_cast<const unsigned char *> (spReflectedAudioData->data());
 
-    // CHECK: not sure if length() is cast to int correctly
-    const int lengthToDecode {static_cast<int>(spReflectedAudioData->length())};
-    auto *decodedAudioData = new opus_int16[m->framesPerBuffer*m->audioChannels*sizeof(opus_int16)]();
-
-    qDebug() << "Audiomanager: Decoding data of size " << lengthToDecode << " bytes.";
-    int samples = opus_custom_decode(m->decoder, inputForOpus, lengthToDecode,
-                                    decodedAudioData, m->framesPerBuffer);
-
-    if (samples < 0)
-    {
-        qWarning() << "Audiomanager: Opus encountered an error while decoding data.";
-    }
-
-    // CHECK: Not sure if "samples" is the size needed here, should samples be equal to framesPerBuffer?
-    auto spDecodedData = std::make_shared<QByteArray>(reinterpret_cast<const char *> (decodedAudioData), samples*2);
-
-    opus_custom_decoder_ctl(m->decoder, OPUS_RESET_STATE);
-    return spDecodedData;
-}
-
-void AudioManager::SendAudioInputToServer(const spAudioData_t &spInputAudioData) const
+void AudioManager::SendAudioInputToServer(const spByteArray_t &spInputAudioData) const
 {
     //qDebug() << "Audiomanager: Emitting signal to send audio input to server.";
     Q_EMIT sigSendAudioInputToServer(spInputAudioData);
@@ -408,23 +302,18 @@ void AudioManager::SendAudioInputToServer(const spAudioData_t &spInputAudioData)
 
 #pragma region SLOTS
 
-void AudioManager::slotSendAudioInputToServer(const spAudioData_t &spInputAudioData) const
+void AudioManager::slotSendAudioInputToServer(const spByteArray_t &spInputAudioData) const
 {
     m->client.SendAudioData(spInputAudioData);
     //m->callbackInterval = m->intervalTimer.restart();
     //qInfo() << "Current interval time: " << m->callbackInterval;
 }
 
-void AudioManager::slotReceivedAudioData(const spAudioData_t& spReflectedAudioData) const
+void AudioManager::slotClientReceivedAudioData(const spListSpByteArray_t& data) const
 {
     /// the locker is unlocked whenever the function ends or returns
     //QMutexLocker locker(&m->mtxLocker);
-    m->queuedPointersToReturnedAudioDataBuffers.enqueue(spReflectedAudioData);
+    m-> jitterBuffer.Add(data);
 }
 
 #pragma endregion
-
-
-
-
-

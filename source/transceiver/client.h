@@ -1,7 +1,7 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
-#include <QObject>
+#include "QObject"
 #include <QDebug>
 #include <QUdpSocket>
 #include <QNetworkDatagram>
@@ -56,23 +56,27 @@ public:
     void RunWithTimer() const;
 
     /*! Sends a QByteArray to the server via udp socket.
-     *
      * @param spAudioData A shared pointer to the QByteArray full of
      * audio samples.
      */
-    void SendAudioData(const spAudioData_t& spAudioData) const;
+    void SendAudioData(const spByteArray_t& spAudioData) const;
 
 signals:
     /*! A signal that is emitted whenever the udp socket has received
      * data back from the server.
      * @param audioData A shared pointer to the QByteArray the server sent back.
      */
-    void signalReceivedAudioData(spAudioData_t audioData);
+    void signalReceivedAudioData(spByteArray_t audioData);
+    void sigReceivedAudioData(spListSpByteArray_t data);
 
 private:
     /// struct for all member variables
     struct Impl;
     std::shared_ptr<Impl> m;
+
+    static void ReadInPort(QString& ipIn, QString& portIn);
+
+    static bool VerifyIpAndPort(const QString& ipIn, const QString &portIn, QHostAddress& ipOut, quint16& portOut);
 
 private slots:
 

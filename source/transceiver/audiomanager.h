@@ -3,16 +3,15 @@
 
 #include <QObject>
 #include <QDebug>
-#include <QQueue>
 #include <QIODevice>
 #include <QElapsedTimer>
 #include <QMutexLocker>
 #include "client.h"
 #include "portAudioCallback.h"
 #include "utils.h"
-#include "opus.h"
-#include "opus_custom.h"
-#include "opus_types.h"
+#include "jitterbuffer.h"
+#include "codec.h"
+#include "devicemanager.h"
 
 class AudioManager : public QObject
 {
@@ -22,27 +21,29 @@ public:
     ~AudioManager() override;
 
     bool Initialize(
-        const QString& encodingEnabled,
+        const QString& ipIn,
+        const QString& portIn,
+        const QString& inputDeviceIndex,
+        const QString& outputDeviceIndex,
         const QString& framesPerBuffer,
         const QString& sampleRate,
         const QString& audioChannels,
-        const QString& inputDeviceIndex,
-        const QString& outputDeviceIndex,
-        const QString& ipIn,
-        const QString& portIn);
+        const QString& jitterBufferSize,
+        const QString& encodingEnabled,
+        const QString& compressionFactor);
 
     /*! Tries to open and start the portaudio stream. */
     void StartAudioStream() const;
 
-    void ProcessAudioInput(const spAudioData_t &spInputAudioData) const;
+    void ProcessAudioInput(const spByteArray_t &spInputAudioData) const;
 
     /*! Checks if the queue of returned audio data has any contents and
-     * if so, it dequeues the first entry into 'receivedData'.
+     * if so, it dequeues the first entry into 'spReceivedData'.
      * @remark Thread-safe
-     * @param spReflectedAudioData A shared pointer to a QByteArray.
+     * @param spReceivedData A shared pointer to a QByteArray.
      * @return True if there was any data in the queue, false otherwise.
      */
-    bool GetReceivedAudioData(spAudioData_t &spReflectedAudioData) const;
+    bool GetReceivedAudioData(spByteArray_t &spReceivedData) const;
 
 
 private:
@@ -50,32 +51,36 @@ private:
     struct Impl;
     std::unique_ptr<Impl> m;
 
+    void ConfigureClient(const QString& ipIn, const QString& portIn);
+
+    /*! Initializes PortAudio - MUST be called before using PortAudio anywhere else.
+     * @returns false if portaudio was not initialized successfully or if the number of audio devices came back negative.
+     */
+    bool InitPortAudio();
+
+    void ConfigureDevices(const QString& inputDeviceIndex, const QString& outputDeviceIndex);
+
     /*! Checks if the parameters given are valid.
      * @param framesPerBuffer Number of frames that are collected until the callback function is called again.
      * @param sampleRate Number of times audio is written to the buffer per second
      * @param audioChannels Number of audio channels port audio is supposed to use for in- and output.
      * @return
      */
-    bool ConfigureAudioParameters(const QString& framesPerBuffer, const QString& sampleRate, const QString& audioChannels);
+    void ConfigureAudioParameters(const QString &framesPerBuffer, const QString &sampleRate,
+                                  const QString &audioChannels);
 
-    /*! Logs all available audio devices and asks the user for
-     * the input and output device's indices.
+    /*! Configures the in- and output streaming parameters for portaudio.
+     * Only call after configuring all other audio parameters for they are needed here.
      */
-    bool ConfigureAudioDevices(const QString& inDeviceIndex, const QString& outDeviceIndex);
-
-    /*! Initializes PortAudio - MUST be called before using PortAudio anywhere else.
-     * \return true if successfully initialized, false otherwise.
-     */
-    void InitPortAudio();
-
-    /*! Configures the in- and output streaming parameters for portaudio. */
     void ConfigurePortaudioParameters();
 
-    void ConfigureOpusEncoding(const QString& encodingEnabled);
+    void ConfigurePaStreamParameters(const std::shared_ptr<PaStreamParameters> &parameters,
+                                 const PaDeviceIndex &deviceIndex,
+                                 PaMacCoreStreamInfo& coreAudioInfo);
 
-    spAudioData_t EncodeWithOpus(const spAudioData_t &spInputAudioData)const;
+    void ConfigureCodec(const QString& encodingEnabled, const QString& compressionFactor);
 
-    spAudioData_t DecodeWithOpus(const spAudioData_t &spReflectedAudioData) const;
+    void ConfigureJitterBuffer(const QString& bufferSize);
 
     /*! Emits a signal to de-couple the next action from the callback function's context.
      * This makes the sending of data thread-safe.
@@ -83,7 +88,7 @@ private:
      * @param spInputAudioData A shared pointer to the QByteArray with the data
      * that is supposed to go to the server.
      */
-    void SendAudioInputToServer(const spAudioData_t &spInputAudioData) const;
+    void SendAudioInputToServer(const spByteArray_t &spInputAudioData) const;
 
 
 signals:
@@ -91,7 +96,7 @@ signals:
      * @param inputData A shared Pointer to the QByteArray with the data that is
      * supposed to be sent.
      */
-    void sigSendAudioInputToServer(spAudioData_t inputData) const;
+    void sigSendAudioInputToServer(spByteArray_t inputData) const;
 
 private slots:
     /*! Slot that calls the Client's 'SendAudioData()' function.
@@ -99,13 +104,13 @@ private slots:
      * @param spInputAudioData A shared pointer to the QByteArray with the data that is
      * supposed to be sent.
      */
-    void slotSendAudioInputToServer(const spAudioData_t &spInputAudioData) const;
+    void slotSendAudioInputToServer(const spByteArray_t &spInputAudioData) const;
 
-    /*! Slot that enqueues the received pointer to a QByteArray.
-     * @param spReflectedAudioData A shared pointer to the QByteArray that was returned from the server.
+    /*! Slot that enqueues the received pointers in the list into a QByteArray.
+     * @param data A shared pointer to List of shared pointers to the QByteArrays that were returned from the server at a time.
      * @remark Thread-safe
      */
-    void slotReceivedAudioData(const spAudioData_t& spReflectedAudioData) const;
+    void slotClientReceivedAudioData(const spListSpByteArray_t& data) const;
 };
 
 #endif // AUDIOMANAGER_H

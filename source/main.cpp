@@ -17,20 +17,30 @@
 
 // --- Build from Terminal: ---
 // after editing the .pro-file: run 'qmake ias.pro' followed by 'make'
-// after only editing some code: run 'make'
+// after only editing code, not the .pro file: build with 'make'
 // --- Start from Terminal: ---
 // build and then run with './ias -i 127.0.0.1 -p 5041'
+// or build and use shell script to run: ./ias.zsh
+
+// flag | description | values | default
+// -i | IP |  ip-adresse
+// -p | port | port nummer
+// -m | input device (microphone) index| int
+// -l | output device (lautsprecher) index | int
+// -f | frames per buffer (frame size) | int | default: 512
+// -s | sample rate | int | default: 48000
+// -c | audio channels | int | default: 1
+// -j | jitter buffer size | int | default: 50
+// -e | encoding | true/false | default: true
+// -r | compression factor | int | default: 8
 
 int main(int argc, char *argv[])
 {
     // Creates an Event-Loop for de Application without an Interface
     QCoreApplication a(argc, argv);
 
-    // Create a CommandLineParser so we can enter IP and Port as command line arguments
+    // Create a CommandLineParser so we can enter command line arguments
     QCommandLineParser parser;
-
-    QCommandLineOption optOpusEncoding = {{"e", "encoded"}, "Opus-Encoding true/false", "encoded"};
-    optOpusEncoding.setDefaultValue("true");
 
     QCommandLineOption optIp = {{"i", "ip"}, "IP-Address", "ip"};
     optIp.setDefaultValue("127.0.0.1");
@@ -53,13 +63,32 @@ int main(int argc, char *argv[])
     QCommandLineOption optAudioChannels = {{"c", "ac"}, "Audio channels", "audioChannels"};
     optAudioChannels.setDefaultValue("1");
 
+    QCommandLineOption optJitterBufferSize = {{"j", "Jitter Buffer Size"}, "Size for the Jitter Buffer as Integer", "jitterBufferSize"};
+    optJitterBufferSize.setDefaultValue("50");
 
-    parser.setApplicationDescription("Start audio callback function that sends input to server.");
+    QCommandLineOption optOpusEncoding = {{"e", "encoded"}, "Opus-Encoding true/false", "encoded"};
+    optOpusEncoding.setDefaultValue("true");
+
+    QCommandLineOption optCompressionFactor = {{"r", "res", "cmp"}, "Compression factor", "compressionFactor"};
+    optCompressionFactor.setDefaultValue("8");
+
+
+    parser.setApplicationDescription("Start audio callback function that sends audio input to server and outputs the reflected audio data");
     parser.addHelpOption();
-    parser.addOptions({optOpusEncoding, optIp, optPort, optInDev, optOutDev, optFramesPerBuffer, optSampleRate, optAudioChannels});
+    parser.addOptions({
+        optIp,
+        optPort,
+        optInDev,
+        optOutDev,
+        optFramesPerBuffer,
+        optSampleRate,
+        optAudioChannels,
+        optJitterBufferSize,
+        optOpusEncoding,
+        optCompressionFactor
+    });
     parser.process(a);
 
-    const QString encodingEnabled = parser.value(optOpusEncoding);
     const QString ipIn = parser.value(optIp);
     const QString portIn = parser.value(optPort);
     const QString inputDeviceIndex = parser.value(optInDev);
@@ -67,6 +96,9 @@ int main(int argc, char *argv[])
     const QString framesPerBuffer = parser.value(optFramesPerBuffer);
     const QString sampleRate = parser.value(optSampleRate);
     const QString audioChannels = parser.value(optAudioChannels);
+    const QString jitterBufferSize = parser.value(optJitterBufferSize);
+    const QString encodingEnabled = parser.value(optOpusEncoding);
+    const QString compressionFactor = parser.value(optCompressionFactor);
 
     //qDebug() << "Ip: " << ipIn << ", Port: " << portIn;
 
@@ -78,17 +110,20 @@ int main(int argc, char *argv[])
         myClient.RunWithTimer();
     }*/
 
-    /// Aufgabe B
+    /// Aufgabe B + C + D
     AudioManager audioManager;
     if (audioManager.Initialize(
-        encodingEnabled,
+        ipIn,
+        portIn,
+        inputDeviceIndex,
+        outputDeviceIndex,
         framesPerBuffer,
         sampleRate,
         audioChannels,
-        inputDeviceIndex,
-        outputDeviceIndex,
-        ipIn,
-        portIn))
+        jitterBufferSize,
+        encodingEnabled,
+        compressionFactor
+        ))
     {
         audioManager.StartAudioStream();
     }
