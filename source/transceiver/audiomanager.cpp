@@ -158,7 +158,7 @@ bool AudioManager::GetReceivedAudioData(spAudioData_t &spReflectedAudioData) con
     bool success = false;
     //QMutexLocker locker(&m->mtxLocker);
 
-	if (waitingForJitterBuffer) {
+	if (m->waitingForJitterBuffer) {
 		if (m->queuedPointersToReturnedAudioDataBuffers.count() >= m->jitterBufferSize) {
 			m->waitingForJitterBuffer = false;
 			qDebug() << "Jitter buffer reached limit. Start audio output.";
