@@ -37,6 +37,8 @@ public:
 
     void ProcessAudioInput(const spByteArray_t &spInputAudioData) const;
 
+    bool GetClientfault() const;
+
     /*! Checks if the queue of returned audio data has any contents and
      * if so, it dequeues the first entry into 'spReceivedData'.
      * @remark Thread-safe

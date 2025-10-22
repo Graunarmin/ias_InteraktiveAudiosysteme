@@ -29,34 +29,37 @@ int PortAudioCallback(const void *inputBuffer,
                             [[maybe_unused]] PaStreamCallbackFlags statusFlags,
                             void *userData)
 {
-    const auto pCallbackData = static_cast<CallbackData *>(userData);
-
-    // Input- und Outputbuffer definieren
     auto input = static_cast<const char *> (inputBuffer);
-    const auto output = static_cast<char *>(outputBuffer);
+    auto output = static_cast<char *>(outputBuffer);
+
+    const auto pCallbackData = static_cast<CallbackData *>(userData);
+	const bool clientfault = pCallbackData->pAudioManager->GetClientfault();
+    // Input- und Outputbuffer definieren
+
 
     auto spAudioData = std::make_shared<QByteArray>(input, framesPerBuffer *2);
 
     // encode input and send to server
     pCallbackData->pAudioManager->ProcessAudioInput(spAudioData);
 
+	if(clientfault){
     // input direkt in den output schreiben
-    for (unsigned int i=0; i < framesPerBuffer * 2; i++)
-    {
-        //output[i] = input[i];
-    }
-
+    	for (unsigned int i=0; i < framesPerBuffer * 2; i++)
+    	{
+        	output[i] = input[i];
+    	}
+	}
     // Get received data from buffer
     std::shared_ptr<QByteArray> spReceivedData;
     bool success = pCallbackData->pAudioManager->GetReceivedAudioData(spReceivedData);
 
-    if (success)
+    if (success && !clientfault)
     {
         const auto receivedData = spReceivedData->data();
         for (unsigned int i=0; i < framesPerBuffer * 2; i++)
         {
             output[i] = receivedData[i];
-            //output[i] += receivedData[i];
+			//output[i] += receivedData[i];
         }
     }
 

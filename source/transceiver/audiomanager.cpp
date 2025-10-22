@@ -5,6 +5,7 @@ struct AudioManager::Impl
 {
     /// ---- Error flags ----
     mutable bool audiofault {false};
+	mutable bool clientfault {false};
     mutable bool soundIsRunning {false};
     mutable PaError portAudioError{};
 
@@ -101,7 +102,7 @@ bool AudioManager::Initialize(
     qDebug() << "... Successfully initialized.";
     qInfo() << "\n";
     qInfo() << "+++ User input required +++";
-    qInfo() << "> Start audio stream? [Press any key to continue]";
+    qInfo() << "> Start audio stream? [Press enter to continue]";
     QTextStream qin(stdin);
     QString confirmation = qin.readLine();
 
@@ -144,6 +145,10 @@ void AudioManager::StartAudioStream() const
         const auto errorText = Pa_GetErrorText(m->portAudioError);
         qWarning() << "ERROR: Audiofault. " << errorText;
     }
+}
+
+bool AudioManager::GetClientfault() const{
+	return m->clientfault;
 }
 
 void AudioManager::ProcessAudioInput(const spByteArray_t &spInputAudioData) const
@@ -193,8 +198,8 @@ void AudioManager::ConfigureClient(const QString &ipIn, const QString &portIn)
 {
     if(!m->client.InitializeForAudio(ipIn, portIn))
     {
-        //ToDo: Implement this
-        qWarning() << "Audiomanager: ERROR. Could not initialize Client. Proceeding without sending data to server.";
+        qWarning() << "Audiomanager: ERROR. Could not initialize web client. Proceeding without sending data to server.";
+		m->clientfault = true;
     }
 }
 

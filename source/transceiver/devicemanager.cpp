@@ -72,8 +72,8 @@ void DeviceManager::LogAudioDeviceInformation() const
 
         qInfo() << "  Device index " << i;
         qInfo() << "    Name                " << deviceInfo->name;
-        qInfo() << "    Max. channels in    " << deviceInfo->maxOutputChannels;
-        qInfo() << "    Max. channels out   " << deviceInfo->maxInputChannels;
+        qInfo() << "    Max. channels in    " << deviceInfo->maxInputChannels;
+        qInfo() << "    Max. channels out   " << deviceInfo->maxOutputChannels;
         qInfo() << "    Default sample rate " << deviceInfo->defaultSampleRate;
         qInfo() << "----------------------------------------------------";
     }
