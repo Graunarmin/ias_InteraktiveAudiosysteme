@@ -30,7 +30,7 @@ int PortAudioCallback(const void *inputBuffer,
                             void *userData)
 {
     auto input = static_cast<const char *> (inputBuffer);
-    auto output = static_cast<char *>(outputBuffer);
+    const auto output = static_cast<char *>(outputBuffer);
 
     const auto pCallbackData = static_cast<CallbackData *>(userData);
 	const bool clientfault = pCallbackData->pAudioManager->GetClientfault();
