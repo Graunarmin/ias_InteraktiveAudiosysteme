@@ -83,7 +83,8 @@ spByteArray_t Codec::Decode(const spByteArray_t &spReflectedData) const
     opus_custom_decoder_ctl(m->decoder, OPUS_SET_BITRATE(OPUS_BITRATE_MAX));
     const auto input = reinterpret_cast<const unsigned char *>(spReflectedData->data());
 
-     const int lengthToDecode{static_cast<int>(spReflectedData->length())};
+    //const int lengthToDecode{m->maxCompressedLength};
+    const int lengthToDecode{static_cast<int>(spReflectedData->size())};
     auto *decodedAudioData = new opus_int16[m->framesPerBuffer * m->audioChannels * sizeof(opus_int16)];
 
     int samples = opus_custom_decode(m->decoder, input, lengthToDecode, decodedAudioData, m->framesPerBuffer);
