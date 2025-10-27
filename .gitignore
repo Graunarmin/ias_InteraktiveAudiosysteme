@@ -47,6 +47,4 @@ ias.pro.user
 *.DS_Store
 
 # Other
-include/
 ias.zsh
-lib/
