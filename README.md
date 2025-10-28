@@ -24,13 +24,16 @@ make
 ```
 ---
 
-## 1. Qt Grundlagen
+## Qt Grundlagen
 
 ### Qt installieren & konfigurieren
+*Qt ist eine große, gut dokumentierte C++ Bibliothek, die den Einstieg in die Sprache vereinfachen kann. 
+Qt implementiert Event-Funktionalitäten über das Signal/Slot Modell.
+Hier gibt es Tipps zur Installation und zu ersten Schritten.*
 
 <details>
 
-<summary> Ausklappen, um die Anleitung zu sehen </summary>
+<summary> ▶️ Ausklappen</summary>
 
 1. Qt installieren: [Open Source](https://www.qt.io/licensing/open-source-lgpl-obligations)
    oder [Educational License](https://www.qt.io/qt-educational-license)
@@ -70,7 +73,7 @@ make
        Falls nicht, stimmt wahrscheinlich der gesetzte Pfad zur Qt-Installation
        nicht.
    
-</details>
+
 
 ### Basics: Konsolenausgabe & Input
 
@@ -86,14 +89,18 @@ make
 - Basically Observer Pattern: You can connect signals to slots so that slots (functions) are called when the signal is
   emitted.
 - s. Klassen "Observer" und "Reporter"
+  
+</details>
 
 ---
 
 ## Reference-Code kompilieren
+*Im moodle Kurs ist der Referenzcode mit unterstützenden Videos verfügbar. 
+Diese Anleitung erklärt, wie der Code auf dem eigenen Mac ausgeführt werden kann.*
 
 <details>
 
-<summary>Ausklappen, um die Anleitung zu sehen</summary>
+<summary> ▶️ Ausklappen</summary>
 
 [Tutorials + Code](https://moodle.hs-anhalt.de/course/view.php?id=1103#section-9)
 
@@ -140,17 +147,21 @@ make
 ## Eigenes Projekt erstellen + kompilieren
 
 *Um die Praxis-Aufgaben zu implementieren, muss zuerst ein eigenes qmake- (oder cmake-) Projekt aufgesetzt werden.
-Diese Anleitung beschreibt, wie das Projekt mit `qmake` aufgesetzt wird.*
+Diese Anleitung beschreibt, wie das Projekt mit `qmake` aufgesetzt wird.* 
+
+<details>
+<summary> ▶️ Ausklappen</summary>
 
 1. Im Qt-Creator ein leeres Projekt erstellen:
     - Qt Konsolenanwendung
     - Build System: qmake
 2. Den Inhalt der `ias.pro` Datei aus dem Referenz-Code für die eigene `.pro` Datei im neuen Projekt übernehmen
-   > [!WARNING] Achtung Windows-User
-   > Für eine aktuelle Version der Datei FÜR WINDOWS bitte an Prof. Carôt wenden
+   
+> [!WARNING]
+> Für eine aktuelle Version der Datei FÜR WINDOWS bitte an Prof. Carôt wenden
 
-3. Im eigenen Projektfile jetzt am Ende bei `HEADERS +=`  und `SOURCES +=` alle Dateien auskommentieren / löschen, die (noch) nicht im eigenen Projekt existieren und ggf. entsprechend die hinzufügen, die existieren.
-4. Den `Makefile` wie folgt erstellen:
+4. Im eigenen Projektfile jetzt am Ende bei `HEADERS +=`  und `SOURCES +=` alle Dateien auskommentieren / löschen, die (noch) nicht im eigenen Projekt existieren und ggf. entsprechend die hinzufügen, die existieren.
+5. Den `Makefile` wie folgt erstellen:
 
     ```bash
     # in den eigenen Projektodner navigieren
@@ -159,7 +170,7 @@ Diese Anleitung beschreibt, wie das Projekt mit `qmake` aufgesetzt wird.*
     qmake myIas.pro
     ```
 
-5. Wenn man jetzt das Projekt mit `make` bauen will, bekommt man sehr wahrscheinlich folgenden Error:
+6. Wenn man jetzt das Projekt mit `make` bauen will, bekommt man sehr wahrscheinlich folgenden Error:
 
    ![Error missing path](img/error_first-build.png)
 
@@ -167,10 +178,37 @@ Diese Anleitung beschreibt, wie das Projekt mit `qmake` aufgesetzt wird.*
    Es gibt nun zwei Möglichkeiten: Entweder wir brechen die `.pro`-Datei auf das Wesentliche herunter und bauen sie nach und nach aus, oder wir übernehmen die Datei, wie sie ist - müssen dann aber bereits alle benötigten Bibliotheken herunterladen und kompilieren, sowie die angegebene Ordnerstruktur erstellen.
    Für Aufgabe A starten wir mit einem Basic `.pro` file, den wir auf das Wesentliche zusammengekürzt haben (Linux und Windows wurden der Übersichtlichkeit halber gelöscht):
     
-    <script src="https://gist.github.com/Graunarmin/8d57f9c67c2375287e05fce935f370e7.js"></script>
+    ```txt
+    macx{
+     DEFINES  += __MACOSX_CORE__
+     # This depends on your OS
+     QMAKE_MACOSX_DEPLOYMENT_TARGET = 15.0
+   }
+
+   # This tells the compiler where to put the executable 
+   DESTDIR = ./bin
+
+   # This tells the compiler how to name the executable (TARGET) 
+   # and where to put the generated .o/.obj and .moc files so they dont overcrowd the root folder
+   CONFIG(release){
+     TARGET = ias
+     OBJECTS_DIR = ./build/objects
+     MOC_DIR = ./build/mocs
+   }
+
+   CONFIG += thread qt warn_on exceptions
+
+   CONFIG += console c++17 cmdline sdk_no_version_check
+
+   QT += core network widgets
+
+   HEADERS += 
+
+   SOURCES +=  main.cpp 
+   ```
     
     Hier müssen natürlich noch die verwendeten `.cpp` und `.h`-Dateien entsprechend ergänzt werden. 
-    Für mehr Infos zur `.pro`-Datei, siehe [QT Docs](https://doc.qt.io/qt-6/qmake-project-files.html).
+    Für mehr Infos zur `.pro`-Datei, siehe [QT Docs](https://doc.qt.io/qt-6/qmake-project-files.html).  
     Anschließend kann das Projekt im Terminal kompiliert werden:
     
     ```bash
@@ -181,9 +219,11 @@ Diese Anleitung beschreibt, wie das Projekt mit `qmake` aufgesetzt wird.*
     ```
    Oder alternativ im Qt Creator gebaut werden.
 
+</details>
+
 ---
 
-# 2. Aufgabenteil
+# Aufgabenteil
 
 ## A. UDP-Transceiver (Transmitter/Receiver)
 
@@ -215,16 +255,16 @@ Dann das Programm wie gewohnt bauen und ausführen, dabei IP-Adresse (-i) und Po
 - Portaudio-Callback Funktion benutzen
   *Ab dem Start liest die Funktion den Sound-Input, der über das angegebene Input-Gerät auf der Soundkarte ankommt, ein, und gibt den Sound, den wir in den Output-Buffer schreiben, über das angegebene Output-Gerät aus.*
 
-> [!IMPORTANT] **Audio Standard**  
+> [!IMPORTANT]
+> **Audio Standard**  
 > - Samplerate: 48kHz (So viele Samples werden pro Sekunde aufgenommen)
 > - Bittiefe: 16 Bit (Die "Auflösung" des Sounds)
 > - Audiokanäle: 1
 > - Framesize: 512 Samples (heißt eigentlich 512 Samples pro Frame - für portaudio aber 512 Frames *(= Samples, s. Erklärung unten)* per Buffer)
 
-> [!WARNING] **Anmerkung**  
-> *Für portaudio ist ein Frame = ein Sample $*$ Anzahl der Audiokanäle (in unserem Fall also ein Sample pro Frame)  
-> &rarr; Die angegebene "Framesize" von 512 ist für portaudio die Anzahl "Frames per Buffer", also die Anzahl der 
-> Frames, die portaudio sammelt, bis die Callback-Funktion das nächste Mal aufgerufen wird.*
+**ACHTUNG**
+*Für portaudio ist ein Frame = ein Sample * Anzahl der Audiokanäle (in unserem Fall also ein Sample pro Frame).  
+&rarr; Die angegebene "Framesize" von 512 ist für portaudio die Anzahl "Frames per Buffer", also die Anzahl der Frames, die portaudio sammelt, bis die Callback-Funktion das nächste Mal aufgerufen wird.*
 
 ### Lösung
 
@@ -240,7 +280,7 @@ Folgende Ordnerstruktur im root-Ordner des eigenen Projekts erstellen (das READM
 ![Required file structure](img/ordnerstruktur_lib.png)
 
 
->[!TIP] Tipp zur Ordnerstruktur  
+> [!TIP]
 > Wenn man im Laufe des Projekts QObjects benutzt, generiert qmake `.moc` Dateien und legt sie, genau wie die
 > Object-Dateien (*.o), in den Root-Ordner.
 > Um zu vermeiden, dass der Root-Ordner dadurch zu unübersichtlich wird, kann man die Projekt-Datei wie folgt ergänzen:
@@ -265,9 +305,49 @@ Folgende Ordnerstruktur im root-Ordner des eigenen Projekts erstellen (das READM
 4. … und im Ordner `lib/OSX/pa/` einfügen
 5. Die `.pro`-Datei anpassen: 
 
-<script src="https://gist.github.com/Graunarmin/60badb34e49a64397176e93418d2e9a8.js"></script>
+```bash
+QMAKE_LIBDIR = $$PWD/lib
 
-> [!NOTE] Anmerkung  
+macx{
+  QMAKE_LIBDIR += $$PWD/lib/OSX/celt/
+  QMAKE_LIBDIR += $$PWD/lib/OSX/pa/
+
+  LIBS      += -framework CoreAudio -framework AudioToolbox -framework AudioUnit -framework CoreServices
+  LIBS      += -lportaudio
+  LIBS      += -lpthread
+
+  DEFINES  += __MACOSX_CORE__
+  QMAKE_MACOSX_DEPLOYMENT_TARGET = 15.0
+}
+
+DESTDIR = ./bin
+
+CONFIG(release){
+  TARGET = ias
+  OBJECTS_DIR = ./build/objects
+  MOC_DIR = ./build/mocs
+}
+
+#DEFINES += PORTAUDIO
+
+#INCLUDEPATH += .
+#INCLUDEPATH += ./include/
+#INCLUDEPATH += ./include/portaudio-snapshot/include/
+
+CONFIG += thread qt warn_on exceptions
+
+CONFIG += console c++17 cmdline sdk_no_version_check
+
+QT += core network widgets
+
+HEADERS += \
+    client.h \
+
+SOURCES +=  main.cpp \
+    client.cpp \
+```
+
+> [!NOTE]
 > Die zur Verfügung gestellte `.pro`-Datei wurde so angepasst, dass das Projekt auch im Qt-Creator gebaut werden kann, damit z.B. der Debugger nutzbar ist.
 > Dazu muss bei allen library paths (`QMAKE_LIBDIR`-Variable) der führende `.` durch `$$PWD` ersetzt werden. 
 > Das hat etwas damit zu tun, dass dieser Pfad vom Compiler erstmal nur an den Linker weitergereicht wird und der relative Pfad dann nicht mehr stimmt. 
@@ -278,7 +358,12 @@ Folgende Ordnerstruktur im root-Ordner des eigenen Projekts erstellen (das READM
 #### Implementierung
 - Die Callback-Funktion wurde in der [portAudioCallback.cpp](https://github.com/Graunarmin/ias_InteraktiveAudiosysteme/blob/main/source/transceiver/portAudioCallback.cpp) implementiert.
 - In der main-Funktion wird ein Objekt vom Typ [Audiomanager](https://github.com/Graunarmin/ias_InteraktiveAudiosysteme/blob/main/source/transceiver/audiomanager.cpp) erstellt. Dieser initialisiert portaudio und startet den Audiostream.
-- Wir haben eine variable Nutzung mit Flags über Konsoleneingabe bei Programmstart vorgesehen, aber alle Variablen haben Defaultwerte. Default der IP-Adresse ist localhost, dieser Wert muss für eine korrekte Reflexion neu gesetzt werden. Außerdem sollten natürlich die Indizes für das Input- und das Output-Gerät je nach Rechner angepasst werden - hierzu geschieht im Programmablauf eine Abfrage. Der Einfachheit halber kann es sinnvoll sein, ein shell script mit den Werten für die eigene Maschine vorzubereiten. 
+- Wir haben eine variable Nutzung mit Flags über Konsoleneingabe bei Programmstart vorgesehen, aber alle Variablen haben Defaultwerte. Default der IP-Adresse ist localhost, dieser Wert muss für eine korrekte Reflexion neu gesetzt werden. Außerdem sollten natürlich die Indizes für das Input- und das Output-Gerät je nach Rechner angepasst werden - hierzu geschieht im Programmablauf eine Abfrage. Der Einfachheit halber kann es sinnvoll sein, ein shell script mit den Werten für die eigene Maschine vorzubereiten.
+
+*Um Aufgaben B bis E auszuführen:
+In der [main.cpp](https://github.com/Graunarmin/ias_InteraktiveAudiosysteme/blob/main/source/main.cpp) die Zeilen 107-111 auskommentieren und Zeilen 114-129 einkommentieren. 
+Dann das Programm wie gewohnt bauen und ausführen, dabei mindestens die IP-Adresse (-i) und Geräte-Indizes angeben (-m und -l).*
+ 
  
 ## C. Encodierung und Decordierung der Audiobuffer via OPUS
 
@@ -302,7 +387,53 @@ make
 4. ... und in den Ordner lib/OSX/celt/ einfügen
 5. Die `.pro`-Datei anpassen: 
 
-<script src="https://gist.github.com/Graunarmin/e0eb5b91cd7170b534f53f4bd546fb73.js"></script>
+```bash
+QMAKE_LIBDIR = $$PWD/lib
+
+macx{
+  QMAKE_LIBDIR += $$PWD/lib/OSX/celt/
+  QMAKE_LIBDIR += $$PWD/lib/OSX/pa/
+
+  LIBS      += -framework CoreAudio -framework AudioToolbox -framework AudioUnit -framework CoreServices
+  LIBS      += -lportaudio
+  LIBS      += -lpthread
+  LIBS      += -lopus
+
+  DEFINES  += __MACOSX_CORE__
+  QMAKE_MACOSX_DEPLOYMENT_TARGET = 15.0
+}
+
+DESTDIR = ./bin
+
+CONFIG(release){
+  TARGET = ias
+  OBJECTS_DIR = ./build/objects
+  MOC_DIR = ./build/mocs
+}
+
+DEFINES += PORTAUDIO
+
+INCLUDEPATH += .
+INCLUDEPATH += ./include/
+INCLUDEPATH += ./include/portaudio-snapshot/include/
+INCLUDEPATH += ./include/opus-1.5.2/include/
+
+CONFIG += thread qt warn_on exceptions
+
+CONFIG += console c++17 cmdline sdk_no_version_check
+
+QT += core network widgets
+
+HEADERS += \
+    client.h \
+    audiomanager.h \
+    # ...
+
+SOURCES +=  main.cpp \
+    client.cpp \
+    audiomanager.cpp \
+    # ...
+```
 
 ### 2. Implementierung
 - Für diese Aufgabe haben wir die Klasse [Codec](https://github.com/Graunarmin/ias_InteraktiveAudiosysteme/blob/main/source/transceiver/codec.cpp) ergänzt. Sie kümmert sich um alles, was Opus betrifft und stellt eine `Encode()` und eine `Decode()` Funktion zur Verfügung.
