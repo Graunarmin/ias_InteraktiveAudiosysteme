@@ -156,12 +156,10 @@ Diese Anleitung beschreibt, wie das Projekt mit `qmake` aufgesetzt wird.*
     - Qt Konsolenanwendung
     - Build System: qmake
 2. Den Inhalt der `ias.pro` Datei aus dem Referenz-Code für die eigene `.pro` Datei im neuen Projekt übernehmen
-   
-> [!WARNING]
-> Für eine aktuelle Version der Datei FÜR WINDOWS bitte an Prof. Carôt wenden
+   *ACHTUNG: Für eine aktuelle Version der Datei FÜR WINDOWS bitte an Prof. Carôt wenden*
 
-4. Im eigenen Projektfile jetzt am Ende bei `HEADERS +=`  und `SOURCES +=` alle Dateien auskommentieren / löschen, die (noch) nicht im eigenen Projekt existieren und ggf. entsprechend die hinzufügen, die existieren.
-5. Den `Makefile` wie folgt erstellen:
+3. Im eigenen Projektfile jetzt am Ende bei `HEADERS +=`  und `SOURCES +=` alle Dateien auskommentieren / löschen, die (noch) nicht im eigenen Projekt existieren und ggf. entsprechend die hinzufügen, die existieren.
+4. Den `Makefile` wie folgt erstellen:
 
     ```bash
     # in den eigenen Projektodner navigieren
@@ -170,7 +168,7 @@ Diese Anleitung beschreibt, wie das Projekt mit `qmake` aufgesetzt wird.*
     qmake myIas.pro
     ```
 
-6. Wenn man jetzt das Projekt mit `make` bauen will, bekommt man sehr wahrscheinlich folgenden Error:
+5. Wenn man jetzt das Projekt mit `make` bauen will, bekommt man sehr wahrscheinlich folgenden Error:
 
    ![Error missing path](img/error_first-build.png)
 
