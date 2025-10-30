@@ -2,6 +2,11 @@
 
 ### Anleitungen für MacOS ab 14.7 (Intel und Apple Silicon)
 
+> [!TIP]
+> Wir haben die statischen Libraries für portaudio und opus im Repository zur Verfügung gestellt. Allerdings wurden diese Versionen auf einem Mac mit Apple-Silicon Chip kompiliert, d.h. für eine Nutzung mit Intel-Chips sind sie ggf. nicht geeignet.
+> Wenn das Projekt auf einer anderen Mac-Architektur als arm64 ausgeführt werden soll, müsste zumindest Opus, ggf. auch Portaudio, erneut kompiliert werden.
+> Dafür bitte vorgehen, wie [hier (Opus)](#opus-library-integrieren) und [hier (Portaudio)](#portaudio-library-integrieren) beschrieben.
+
 ```bash
 # build (after editing the .pro file):
 qmake ias.pro
@@ -37,16 +42,14 @@ Hier gibt es Tipps zur Installation und zu ersten Schritten.*
 
 1. Qt installieren: [Open Source](https://www.qt.io/licensing/open-source-lgpl-obligations)
    oder [Educational License](https://www.qt.io/qt-educational-license)
-2. Um Qt-Projekte zu bauen wird ein Build-System benötigt. Qt hat dazu ein eigenes Tool entwickelt: [qmake](https://doc.qt.io/qt-6/qmake-overview.html), das beim ersten Schritt mit installiert worden sein sollte. 
+2. Um C++ Projekte zu bauen, wird ein Build-System benötigt. Qt hat dafür ein eigenes Tool entwickelt: [qmake](https://doc.qt.io/qt-6/qmake-overview.html), das beim ersten Schritt automatisch mit installiert worden sein sollte. 
    Alternativ dazu kann natürlich auch ein Build-System wie `cmake`genutzt werden. 
    Beide Systeme erstellen einen `Makefile`, der vom `make` Befehl gelesen wird, um das Projekt zu bauen.
 3. Wenn Qmake genutzt wird, muss das Build-System noch im Terminal konfiguriert werden:  
    *Info: Der Befehl `qmake` erstellt einen Makefile, der alle Informationen zum Kompilieren enthält.*
-    1. Zuerst muss der Pfad zu Qt in der Profile-Datei gesetzt werden. 
-       Je nach genutzter Shell heißt die Datei unterschiedlich - auf manchen Maschinen (v.a. wenn der Mac neu oder frisch aufgesetzt ist), kann es sein, dass
-       die Datei noch gar nicht existiert. 
-       Am besten einmal googlen wie sie für das eigene Betriebssystem heißen könnte und wo sie liegt, à la “Profile 
-       file on Mac OS <X>”.
+    1. Zuerst muss der Pfad zur Qt Binary in der Profile-Datei gesetzt werden. 
+       Je nach genutzter Shell heißt die Datei unterschiedlich - auf manchen Maschinen (v.a. wenn der Mac neu oder frisch aufgesetzt ist), kann es sein, dass die Datei noch gar nicht existiert. 
+       Am besten einmal googlen, wie sie für das eigene Betriebssystem heißen könnte und wo sie liegt, à la “Profile file on Mac OS <X>”.
 
         ```bash
         # Pfad in der profile-Datei setzen - Name hängt von der genutzten shell ab.
@@ -58,8 +61,8 @@ Hier gibt es Tipps zur Installation und zu ersten Schritten.*
 
         ```
         # Dort den Pfad zum Qt 'bin' Verzeichnis in eine neue Zeile schreiben + speichern
-        # Replace <...> with your own path
-        export PATH=</Users/johanna/Qt/6.9.2/>macos/bin:$PATH
+        # Replace <...> (incl. braces) with your own path
+        export PATH=</Users/myname/Qt/6.9.2/>macos/bin:$PATH
         ```
 
     2. Konsole beenden und anschließend neu starten
@@ -70,8 +73,7 @@ Hier gibt es Tipps zur Installation und zu ersten Schritten.*
         ```
 
        Der Befehl sollte jetzt gefunden werden. 
-       Falls nicht, stimmt wahrscheinlich der gesetzte Pfad zur Qt-Installation
-       nicht.
+       Falls nicht, stimmt wahrscheinlich der gesetzte Pfad zur Qt-Installation nicht.
    
 
 
@@ -106,8 +108,7 @@ Diese Anleitung erklärt, wie der Code auf dem eigenen Mac ausgeführt werden ka
 
 1. [Code](https://moodle.hs-anhalt.de/mod/resource/view.php?id=169159) herunterladen
 2. Archiv entpacken
-3. Im Finder oder im Terminal in den entpackten Ordner navigieren (im Finder: mit `shift`+ `cmd`+ `.` versteckte 
-   Dateien anzeigen)
+3. Im Finder oder im Terminal in den entpackten Ordner navigieren (im Finder: mit `shift`+ `cmd`+ `.` versteckte Dateien anzeigen)
 4. Die Dateien `.qmake.stash`, `ias(.app)` und `Makefile` löschen
 
    ![Zu löschende Dateien](img/files-to-delete.png)
@@ -174,7 +175,7 @@ Diese Anleitung beschreibt, wie das Projekt mit `qmake` aufgesetzt wird.*
 
    Das liegt daran, dass die Ordnerstruktur, die in der `.pro`-Datei angegeben wird, noch gar nicht existiert.
    Es gibt nun zwei Möglichkeiten: Entweder wir brechen die `.pro`-Datei auf das Wesentliche herunter und bauen sie nach und nach aus, oder wir übernehmen die Datei, wie sie ist - müssen dann aber bereits alle benötigten Bibliotheken herunterladen und kompilieren, sowie die angegebene Ordnerstruktur erstellen.
-   Für Aufgabe A starten wir mit einem Basic `.pro` file, den wir auf das Wesentliche zusammengekürzt haben (Linux und Windows wurden der Übersichtlichkeit halber gelöscht):
+   Für Aufgabe A starten wir mit einem Basic `.pro` file, den wir auf das Wesentliche zusammengekürzt haben (Angaben für Linux und Windows wurden für eine besere Übersichtlichkeit gelöscht):
     
     ```txt
     macx{
@@ -215,7 +216,8 @@ Diese Anleitung beschreibt, wie das Projekt mit `qmake` aufgesetzt wird.*
     # das Projekt bauen: 
     make
     ```
-   Oder alternativ im Qt Creator gebaut werden.
+    
+   Alternativ kann das Projekt auch über die GUI im Qt-Creator gebaut werden.
 
 </details>
 
@@ -235,43 +237,41 @@ IP-Adresse und Port des Reflektors werden als User-Input entgegengenommen.
 
 ### Lösung
 
-Die gesamte Aufgabe wurde mit der Klasse [client]() gelöst:
+Die gesamte Aufgabe wurde mit der Klasse [client](https://github.com/Graunarmin/ias_InteraktiveAudiosysteme/blob/main/source/transceiver/client.cpp) gelöst:
 
 - Wir nutzen einen Timer vom Typ [QTimer](https://doc.qt.io/qt-6/qtimer.html). Dieser triggert bei jedem Zeitschritt das Signal `QTimer::timeout`, welches wir mit dem Slot [slotSendTimerData](https://github.com/Graunarmin/ias_InteraktiveAudiosysteme/blob/cb17030402904a52d5683982e74e8b53ee9b6098/source/transceiver/client.cpp#L65) verbinden.
 - Das `QUdpSocket::readyRead`-Signal des [QUdpSocket](https://doc.qt.io/qt-6/qudpsocket.html) verbinden wir mit dem Slot [slotReceivedReflectedTimerData](https://github.com/Graunarmin/ias_InteraktiveAudiosysteme/blob/cb17030402904a52d5683982e74e8b53ee9b6098/source/transceiver/client.cpp#L91) unserer Client-Klasse.
 
 *Um Aufgabe A auszuführen:
 In der [main.cpp](https://github.com/Graunarmin/ias_InteraktiveAudiosysteme/blob/main/source/main.cpp) die Zeilen 107-111 einkommentieren und Zeilen 114-129 auskommentieren. 
-Dann das Programm wie gewohnt bauen und ausführen, dabei IP-Adresse (-i) und Port-Nummer (-p) angeben.*
+Dann das Programm wie gewohnt bauen und ausführen, dabei IP-Adresse (-i) und Port-Nummer (-p, optional) angeben.*
 
 
 ## B. Konfiguration des Portaudio-Projektes
 
 ### Aufgabe
 
-- Portaudioprojekt aufsetzen und kompilieren
-- Portaudio-Callback Funktion benutzen
-  *Ab dem Start liest die Funktion den Sound-Input, der über das angegebene Input-Gerät auf der Soundkarte ankommt, ein, und gibt den Sound, den wir in den Output-Buffer schreiben, über das angegebene Output-Gerät aus.*
+Ein Portaudioprojekt soll aufgesetzt und kompiliert werden.  
+Im Projekt soll die Portaudio Callback-Funktion benutzt werden, um Sound einzulesen und auszugeben.
+  *Die Callback-Funktion liest den Sound-Input ein, der über das angegebene Input-Gerät auf der Soundkarte ankommt, und gibt den Sound, den wir in den Output-Buffer schreiben, über das angegebene Output-Gerät aus.*
 
-> [!IMPORTANT]
-> **Audio Standard**  
-> - Samplerate: 48kHz (So viele Samples werden pro Sekunde aufgenommen)
-> - Bittiefe: 16 Bit (Die "Auflösung" des Sounds)
-> - Audiokanäle: 1
-> - Framesize: 512 Samples (heißt eigentlich 512 Samples pro Frame - für portaudio aber 512 Frames *(= Samples, s. Erklärung unten)* per Buffer)
+###### Audio Standard 
+- Samplerate: 48kHz (So viele Samples werden pro Sekunde aufgenommen)
+- Bittiefe: 16 Bit (Die "Auflösung" des Sounds)
+- Audiokanäle: 1
+- Framesize: 512 Samples (heißt eigentlich 512 Samples pro Frame - für portaudio aber 512 Frames *(= Samples, s. Erklärung unten)* per Buffer)
 
-**ACHTUNG**
-*Für portaudio ist ein Frame = ein Sample * Anzahl der Audiokanäle (in unserem Fall also ein Sample pro Frame).  
-&rarr; Die angegebene "Framesize" von 512 ist für portaudio die Anzahl "Frames per Buffer", also die Anzahl der Frames, die portaudio sammelt, bis die Callback-Funktion das nächste Mal aufgerufen wird.*
+> [!WARNING]
+> Für portaudio ist ein Frame = ein Sample * Anzahl der Audiokanäle (in unserem Fall also ein Sample pro Frame).  
+> &rarr; Die angegebene "Framesize" von 512 ist für portaudio die Anzahl "Frames per Buffer", also die Anzahl der Frames, die portaudio sammelt, bis die Callback-Funktion das nächste Mal aufgerufen wird.
 
 ### Lösung
 
 #### Portaudio-Projekt aufsetzen und konfigurieren
 
-Um externe Bibliotheken wie Portaudio in das Projekt einzubinden, muss der `.pro`-file nun entsprechend angepasst werden. 
-Dazu zuerst eine geeignete Ordnerstruktur anlegen: 
+Um externe Bibliotheken wie Portaudio in das Projekt einzubinden, muss der `.pro`-file nun entsprechend angepasst werden.
 
-##### 1. Ordnerstruktur anlegen
+##### Ordnerstruktur anlegen
 
 Folgende Ordnerstruktur im root-Ordner des eigenen Projekts erstellen (das README.md ist irrelevant):
 
@@ -280,7 +280,7 @@ Folgende Ordnerstruktur im root-Ordner des eigenen Projekts erstellen (das READM
 
 > [!TIP]
 > Wenn man im Laufe des Projekts QObjects benutzt, generiert qmake `.moc` Dateien und legt sie, genau wie die
-> Object-Dateien (*.o), in den Root-Ordner.
+> Object-Dateien (*.o/*.obj), in den Root-Ordner.  
 > Um zu vermeiden, dass der Root-Ordner dadurch zu unübersichtlich wird, kann man die Projekt-Datei wie folgt ergänzen:
 >
 > ```bash
@@ -295,9 +295,9 @@ Folgende Ordnerstruktur im root-Ordner des eigenen Projekts erstellen (das READM
 > }
 > ```
 
-##### 2. Portaudio Library integrieren
+##### Portaudio Library integrieren
 
-1. Portaudio [herunterladen](https://files.portaudio.com/download.html), aber statt des aktuellen stable Releases den Release von 2016 benutzen. (Dazu ggf. noch mal bei Prof. Carôt nachfragen! Vielleicht ist der stable release mittlerweile gefixt.)
+1. Portaudio [herunterladen](https://files.portaudio.com/download.html), aber statt des aktuellen stable Releases den Release von 2016 benutzen. *(Dazu ggf. noch mal bei Prof. Carôt nachfragen! Vielleicht ist der stable release mittlerweile gefixt.)*
 2. Portaudio im `/include` Ordner des eigenen Projekts entpacken, im Terminal in den Ordner navigieren und mit `./configure --disable-mac-universal` konfigurieren
 3. Die generierte `libportaudio.a`  kopieren (versteckte Dateien anzeigen mit `shift + cmd + .` , Datei liegt im portaudio Ordner unter `lib/.libs` ) …
 4. … und im Ordner `lib/OSX/pa/` einfügen
@@ -355,8 +355,8 @@ SOURCES +=  main.cpp \
 
 #### Implementierung
 - Die Callback-Funktion wurde in der [portAudioCallback.cpp](https://github.com/Graunarmin/ias_InteraktiveAudiosysteme/blob/main/source/transceiver/portAudioCallback.cpp) implementiert.
-- In der main-Funktion wird ein Objekt vom Typ [Audiomanager](https://github.com/Graunarmin/ias_InteraktiveAudiosysteme/blob/main/source/transceiver/audiomanager.cpp) erstellt. Dieser initialisiert portaudio und startet den Audiostream.
-- Wir haben eine variable Nutzung mit Flags über Konsoleneingabe bei Programmstart vorgesehen, aber alle Variablen haben Defaultwerte. Default der IP-Adresse ist localhost, dieser Wert muss für eine korrekte Reflexion neu gesetzt werden. Außerdem sollten natürlich die Indizes für das Input- und das Output-Gerät je nach Rechner angepasst werden - hierzu geschieht im Programmablauf eine Abfrage. Der Einfachheit halber kann es sinnvoll sein, ein shell script mit den Werten für die eigene Maschine vorzubereiten.
+- In der [main.cpp](https://github.com/Graunarmin/ias_InteraktiveAudiosysteme/blob/main/source/main.cpp) wird ein Objekt vom Typ [Audiomanager](https://github.com/Graunarmin/ias_InteraktiveAudiosysteme/blob/main/source/transceiver/audiomanager.cpp) erstellt. Dieses Objekt initialisiert portaudio und startet den Audiostream.
+- Wir haben eine variable Nutzung mit Flags über Konsoleneingabe bei Programmstart vorgesehen, aber alle Variablen haben Defaultwerte. Default der IP-Adresse ist localhost; dieser Wert muss neu gesetzt werden, wenn die Mirror-Funktion des Servers genutzt werden soll (IP-Adresse bei Prof. Carôt erfragen). Außerdem sollten natürlich die Indizes für das Input- und das Output-Gerät je nach Rechner angepasst werden - hierzu geschieht im Programmablauf eine Abfrage. Um die Werte nicht jedes Mal neu eingeben zu müssen (und wenn man sie nicht hard-coden will), kann es sinnvoll sein, ein shell script mit den Werten für das eigene Setup vorzubereiten.
 
 *Um Aufgaben B bis E auszuführen:
 In der [main.cpp](https://github.com/Graunarmin/ias_InteraktiveAudiosysteme/blob/main/source/main.cpp) die Zeilen 107-111 auskommentieren und Zeilen 114-129 einkommentieren. 
@@ -371,7 +371,7 @@ Dieses Datenaufkommen soll auf 96 kBit/s reduziert werden.
 Dazu soll der Input-Buffer mit [Opus](https://opus-codec.org/docs/opus_api-1.5/group__opus__custom.html) codiert und anschließend wieder decodiert werden.
 
 ### Lösung
-#### 1. Opus Library integrieren
+#### Opus Library integrieren
 [Opus Library](https://opus-codec.org/downloads/) herunterladen und kompilieren:
 1. Opus im `/include` Ordner des eigenen Projekts entpacken, im Terminal in den Ordner navigieren und wie folgt konfigurieren:
 
@@ -433,7 +433,7 @@ SOURCES +=  main.cpp \
     # ...
 ```
 
-### 2. Implementierung
+### Implementierung
 - Für diese Aufgabe haben wir die Klasse [Codec](https://github.com/Graunarmin/ias_InteraktiveAudiosysteme/blob/main/source/transceiver/codec.cpp) ergänzt. Sie kümmert sich um alles, was Opus betrifft und stellt eine `Encode()` und eine `Decode()` Funktion zur Verfügung.
 
 ## D. Verbindung von A und B
@@ -455,5 +455,5 @@ gelesen werden. Ideal ist eine Implementierung, die es erlaubt, Puffergrößen z
 
 ### Lösung
 - Wir haben den [Jitterbuffer als eigene Klasse](https://github.com/Graunarmin/ias_InteraktiveAudiosysteme/blob/main/source/transceiver/jitterbuffer.cpp) implementiert.
-- Der Jitterbuffer verwaltet einen Queue, die SharedPointer auf die zurückempfangenen, ggf. noch codierten Arrays mit Audiodaten hält. Der Audiomanager bekommt über ein Signal vom Client diese Pointer und fügt sie über die bereitgestellte `Add()`-Funktion zum Buffer hinzu. Die Callback-Funktion kann dann jeweils den ersten Pointer in der Queue anfragen, und wenn der Buffer entsprechend groß ist, gibt er die Daten raus.
+- Der Jitterbuffer verwaltet einen Queue, die SharedPointer auf die zurückempfangenen, ggf. noch codierten, Arrays mit Audiodaten hält. Der Audiomanager bekommt über ein Signal vom Client diese Pointer und fügt sie über die bereitgestellte `Add()`-Funktion zum Buffer hinzu. Die Callback-Funktion kann dann jeweils den ersten Pointer in der Queue anfragen, und wenn der Buffer entsprechend groß ist, gibt er die Daten raus.
 - Auch die Größe des Jitterbuffers lässt sich über Flags eistellen. Der Defaultwert ist auf 50 gesetzt, aber die Größe wird auch zu Beginn des Programms einmal abgefragt. Anschließend kann sie nur nach einem Neustart geändert werden.
