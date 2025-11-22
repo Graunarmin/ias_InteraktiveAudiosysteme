@@ -1,5 +1,30 @@
 #include "portAudioCallback.h"
 
+
+///// ENCODING RELATED BEGIN
+#include "QObject"
+#include <QDebug>
+#include "opus.h"
+#include "opus_custom.h"
+#include "opus_types.h"
+#include "utils.h"
+
+int opusError{};
+OpusCustomMode *opusMode   = opus_custom_mode_create(48000, 512, &opusError);
+OpusCustomEncoder *encoder = opus_custom_encoder_create(opusMode, 1, &opusError);
+OpusCustomDecoder *decoder = opus_custom_decoder_create(opusMode, 1, &opusError);
+
+unsigned char *encodedAudioData = new unsigned char[1024];
+short *decodedAudioData = new short[1024];
+int length = 128;
+
+#include <iostream>
+using namespace std;
+///// ENCODING RELATED END
+
+
+
+
 /// The "callback" is a function that is called by the PortAudio engine whenever it has captured audio data, or when it needs more audio data for output.
 /*!
  * \brief PortAudioCallback
@@ -47,8 +72,11 @@ int PortAudioCallback(const void *inputBuffer,
 	else
 	{
 		auto spAudioData = std::make_shared<QByteArray>(input, framesPerBuffer *2);
+
 		// encode input and send to server
 		pCallbackData->pAudioManager->ProcessAudioInput(spAudioData);
+
+
 		// Get received data from buffer
 		std::shared_ptr<QByteArray> spReceivedData;
 		bool success = pCallbackData->pAudioManager->GetReceivedAudioData(spReceivedData);
@@ -56,10 +84,22 @@ int PortAudioCallback(const void *inputBuffer,
 		if (success)
 		{
 			const auto receivedData = spReceivedData->data();
+
+			/// ENCODING AND DECODING OF RECEIVED AUDIO BUFFER
+			int reduceQualityBy = 1;
+
+			int length = opus_custom_encode(encoder, (short *) receivedData, framesPerBuffer, encodedAudioData, 128/reduceQualityBy);
+                        cout << "ENCODING RESULT: " << length << endl;
+  			int samples = opus_custom_decode(decoder, encodedAudioData, 128/reduceQualityBy, decodedAudioData, framesPerBuffer);
+                        cout << "DECODING RESULT: " << samples << endl;
+
+			char* decodedAudioDataAsChar =  (char *) decodedAudioData;
+		        /// END OF EN- AND DECODING
+
 			for (unsigned int i=0; i < framesPerBuffer * 2; i++)
 			{
-				output[i] = receivedData[i];
-				//output[i] += receivedData[i];
+				output[i] = decodedAudioDataAsChar[i];
+				//output[i] = receivedData[i];
 			}
 		}
 	}

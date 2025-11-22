@@ -1,6 +1,10 @@
 // ReSharper disable CppMemberFunctionMayBeConst
 #include "codec.h"
 
+#include <iostream>
+
+using namespace std;
+
 struct Codec::Impl
 {
     int opusError{};
@@ -31,10 +35,13 @@ Codec::~Codec()
 
 bool Codec::Initialize(const QString &compressionFactor, const int sampleRate, const int framesPerBuffer, const int channels)
 {
+
     SetCompression(compressionFactor);
     m->framesPerBuffer = framesPerBuffer;
     m->audioChannels = channels;
     m->maxCompressedLength = m->framesPerBuffer*2 / m->compressionFactor;
+
+    cout << "SR: " << sampleRate << " FPB: " << m->framesPerBuffer << " CH: " << m->audioChannels << endl;
 
     m->opusMode = opus_custom_mode_create(sampleRate, m->framesPerBuffer, &m->opusError);
     if (m->opusError != OPUS_OK)
@@ -66,7 +73,12 @@ spByteArray_t Codec::Encode(const spByteArray_t &spInputData) const
     const auto input = reinterpret_cast<const opus_int16 *>(spInputData->data());
     auto *encodedAudioData = new unsigned char [m->maxCompressedLength]();
 
-    int length = opus_custom_encode(m->encoder, input, m->framesPerBuffer * m->audioChannels, encodedAudioData, m->maxCompressedLength);
+    //int length = opus_custom_encode(m->encoder, input, m->framesPerBuffer * m->audioChannels, encodedAudioData, m->maxCompressedLength);
+    //int length = opus_custom_encode(m->encoder, input, m->framesPerBuffer * m->audioChannels, encodedAudioData, m->maxCompressedLength);
+ 
+    int length = opus_custom_encode(m->encoder, (short *) spInputData->data(), m->framesPerBuffer * m->audioChannels, encodedAudioData, m->maxCompressedLength);
+
+    cout << "FPB: " << m->framesPerBuffer << " CH: " << m->audioChannels << " VALUE: " << m->maxCompressedLength << " LENGTH: " << length << endl;
 
     if (length < 0)
     {
@@ -85,17 +97,20 @@ spByteArray_t Codec::Decode(const spByteArray_t &spReflectedData) const
 
     //const int lengthToDecode{m->maxCompressedLength};
     const int lengthToDecode{static_cast<int>(spReflectedData->size())};
+
     auto *decodedAudioData = new opus_int16[m->framesPerBuffer * m->audioChannels * sizeof(opus_int16)];
 
     int samples = opus_custom_decode(m->decoder, input, lengthToDecode, decodedAudioData, m->framesPerBuffer);
-    if (samples < 0)
+  
+      if (samples < 0)
     {
         qWarning() << "Codec: Opus encountered an ERROR while decoding data.";
     }
 
-    auto spDecodedData = std::make_shared<QByteArray>(reinterpret_cast<const char *> (decodedAudioData), samples * 2);
+    auto spDecodedData = std::make_shared<QByteArray>(reinterpret_cast<const char *> (decodedAudioData), samples * 2 );
     opus_custom_decoder_ctl(m->decoder, OPUS_RESET_STATE);
     return spDecodedData;
+
 }
 
 void Codec::SetCompression(const QString& factor)

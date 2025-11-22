@@ -278,16 +278,22 @@ void AudioManager::ConfigurePaStreamParameters(const std::shared_ptr<PaStreamPar
 
 void AudioManager::ConfigureCodec(const QString& encodingEnabled, const QString& compressionFactor)
 {
+
+    m->opusEncoding = false;
+
+    /*
     if (!m->trueValues.contains(encodingEnabled))
     {
         m->opusEncoding = false;
         qInfo() << "... Encoding disabled.";
         return;
     }
-    m->opusEncoding = true;
+    
+    //m->opusEncoding = false;
     qInfo() << "... Encoding enabled.";
 
     m->codec.Initialize(compressionFactor, m->sampleRate, m->framesPerBuffer, m->audioChannels);
+    */
 }
 
 void AudioManager::ConfigureJitterBuffer(const QString &bufferSize)
