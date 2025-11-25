@@ -74,7 +74,7 @@ spByteArray_t Codec::Encode(const spByteArray_t &spInputData) const
     }
 
     auto spEncodedInputData = std::make_shared<QByteArray>(reinterpret_cast<const char *> (encodedAudioData), length);
-    opus_custom_encoder_ctl(m->encoder, OPUS_RESET_STATE);
+    //opus_custom_encoder_ctl(m->encoder, OPUS_RESET_STATE);
     return spEncodedInputData;
 }
 
@@ -93,7 +93,7 @@ spByteArray_t Codec::Decode(const spByteArray_t &spReflectedData) const
     }
 
     auto spDecodedData = std::make_shared<QByteArray>(reinterpret_cast<const char *> (decodedAudioData), samples * 2);
-    opus_custom_decoder_ctl(m->decoder, OPUS_RESET_STATE);
+    //opus_custom_decoder_ctl(m->decoder, OPUS_RESET_STATE);
     return spDecodedData;
 }
 
