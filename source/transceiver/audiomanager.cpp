@@ -147,10 +147,6 @@ void AudioManager::StartAudioStream() const
     }
 }
 
-bool AudioManager::GetClientfault() const{
-	return m->clientfault;
-}
-
 void AudioManager::ProcessAudioInput(const spByteArray_t &spInputAudioData) const
 {
     spByteArray_t dataReadyToSend {spInputAudioData};
@@ -158,7 +154,16 @@ void AudioManager::ProcessAudioInput(const spByteArray_t &spInputAudioData) cons
     {
         dataReadyToSend = m->codec.Encode(spInputAudioData);
     }
-    SendAudioInputToServer(dataReadyToSend);
+
+    if (!m->clientfault)
+    {
+        SendAudioInputToServer(dataReadyToSend);
+    }
+    else
+    {
+        WriteAudioToBuffer(dataReadyToSend);
+    }
+
 }
 
 bool AudioManager::GetReceivedAudioData(spByteArray_t &spReceivedData) const
@@ -303,6 +308,20 @@ void AudioManager::SendAudioInputToServer(const spByteArray_t &spInputAudioData)
     Q_EMIT sigSendAudioInputToServer(spInputAudioData);
 }
 
+void AudioManager::WriteAudioToBuffer(const spByteArray_t &spOutputAudioData) const
+{
+    /// the locker is unlocked whenever the function ends or returns
+    //QMutexLocker locker(&m->mtxLocker);
+    m-> jitterBuffer.Add(spOutputAudioData);
+}
+
+void AudioManager::WriteAudioToBuffer(const spListSpByteArray_t &spOutputAudioData) const
+{
+    /// the locker is unlocked whenever the function ends or returns
+    //QMutexLocker locker(&m->mtxLocker);
+    m-> jitterBuffer.Add(spOutputAudioData);
+}
+
 #pragma endregion
 
 #pragma region SLOTS
@@ -316,9 +335,7 @@ void AudioManager::slotSendAudioInputToServer(const spByteArray_t &spInputAudioD
 
 void AudioManager::slotClientReceivedAudioData(const spListSpByteArray_t& data) const
 {
-    /// the locker is unlocked whenever the function ends or returns
-    //QMutexLocker locker(&m->mtxLocker);
-    m-> jitterBuffer.Add(data);
+    WriteAudioToBuffer(data);
 }
 
 #pragma endregion

@@ -72,9 +72,13 @@ spByteArray_t Codec::Encode(const spByteArray_t &spInputData) const
     {
         qWarning() << "Codec: Opus encountered an ERROR while encoding input data.";
     }
+    else
+    {
+        qInfo() << "Codec: Encoded to length" << length;
+    }
 
     auto spEncodedInputData = std::make_shared<QByteArray>(reinterpret_cast<const char *> (encodedAudioData), length);
-    opus_custom_encoder_ctl(m->encoder, OPUS_RESET_STATE);
+    //opus_custom_encoder_ctl(m->encoder, OPUS_RESET_STATE);
     return spEncodedInputData;
 }
 
@@ -83,7 +87,6 @@ spByteArray_t Codec::Decode(const spByteArray_t &spReflectedData) const
     opus_custom_decoder_ctl(m->decoder, OPUS_SET_BITRATE(OPUS_BITRATE_MAX));
     const auto input = reinterpret_cast<const unsigned char *>(spReflectedData->data());
 
-    //const int lengthToDecode{m->maxCompressedLength};
     const int lengthToDecode{static_cast<int>(spReflectedData->size())};
     auto *decodedAudioData = new opus_int16[m->framesPerBuffer * m->audioChannels * sizeof(opus_int16)];
 
@@ -92,9 +95,12 @@ spByteArray_t Codec::Decode(const spByteArray_t &spReflectedData) const
     {
         qWarning() << "Codec: Opus encountered an ERROR while decoding data.";
     }
-
+    else
+    {
+        qInfo() << "Codec: Decoded" << samples << "samples";
+    }
     auto spDecodedData = std::make_shared<QByteArray>(reinterpret_cast<const char *> (decodedAudioData), samples * 2);
-    opus_custom_decoder_ctl(m->decoder, OPUS_RESET_STATE);
+    //opus_custom_decoder_ctl(m->decoder, OPUS_RESET_STATE);
     return spDecodedData;
 }
 
