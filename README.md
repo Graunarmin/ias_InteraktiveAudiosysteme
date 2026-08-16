@@ -28,6 +28,15 @@ make
 # quit application (on Mac): Ctrl + C
 ```
 ---
+### Keine Antwort vom Server?
+
+Manchmal ist der Server down und man bekommt keine Antwort. Auf MacOS kann man das mit netcat übers Terminal testen:
+```bash
+netcat -zv -u <ip-address> <port>
+```
+Wenn eine Warnung oder Fehlermeldung zurück kommt: Professor Carôt bescheid sagen.
+
+---
 
 ## Qt Grundlagen
 
